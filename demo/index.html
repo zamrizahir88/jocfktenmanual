@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ms">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sistem Permohonan JOC · FKTEN</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230e2262'/%3E%3Ctext x='32' y='41' font-family='Arial' font-weight='800' font-size='22' fill='%23f5c63a' text-anchor='middle'%3EJOC%3C/text%3E%3C/svg%3E">
+  <meta name="description" content="Saringan permohonan MySISWA Job on Campus peringkat Fakulti Kejuruteraan & Teknologi Elektronik, UniMAP (mock).">
+  <script>
+    // Apply theme before first paint to avoid a flash.
+    (function () {
+      var t = null;
+      try { t = localStorage.getItem('joc_theme'); } catch (e) {}
+      if (!t) t = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="root"></div>
+  <div id="modal-root"></div>
+  <div class="toast-wrap" id="toasts"></div>
+  <div class="mock-ribbon">MOCK · DATA CONTOH</div>
+  <script src="js/data.js"></script>
+  <script src="js/api-mock.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

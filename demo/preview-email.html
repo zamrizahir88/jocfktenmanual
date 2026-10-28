@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pratonton Templat Emel · JOC FKTEN</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; font-family: Inter, system-ui, sans-serif; background: #d9dee8; color: #0f172a; }
+  header { padding: 18px 24px 6px; }
+  header h1 { margin: 0; font-size: 1.15rem; }
+  header p { margin: 6px 0 0; font-size: .88rem; color: #475569; max-width: 1000px; line-height: 1.5; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 24px; align-items: center; }
+  .bar button { font: inherit; font-weight: 700; font-size: .84rem; border: 1px solid #c3cad8; background: #fff; border-radius: 999px; padding: 8px 14px; cursor: pointer; color: #0f172a; }
+  .bar button.on { background: #0e2262; color: #fff; border-color: #0e2262; }
+  .bar .sep { width: 1px; height: 24px; background: #b8c0cf; margin: 0 6px; }
+  main { display: grid; grid-template-columns: 300px 1fr; gap: 20px; padding: 10px 24px 32px; align-items: start; }
+  .meta { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 4px 18px rgba(0, 0, 0, .06); font-size: .86rem; position: sticky; top: 12px; }
+  .meta h3 { margin: 0 0 10px; font-size: .95rem; }
+  .meta dl { margin: 0; display: grid; grid-template-columns: 70px 1fr; gap: 8px 10px; }
+  .meta dt { color: #5b6577; font-weight: 700; }
+  .meta dd { margin: 0; word-break: break-word; }
+  .meta .when { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e3e8f0; color: #334155; line-height: 1.5; }
+  .meta .cgee { margin-top: 10px; background: #fff4d6; color: #92400e; border-radius: 8px; padding: 8px 10px; font-weight: 600; }
+  .inbox { background: #fff; border-radius: 14px; box-shadow: 0 10px 40px rgba(0, 0, 0, .12); overflow: hidden; margin: 0 auto; transition: max-width .2s; }
+  .inbox .top { padding: 14px 18px; border-bottom: 1px solid #e3e8f0; }
+  .inbox .subj { font-weight: 800; font-size: 1.02rem; }
+  .inbox .from { font-size: .8rem; color: #5b6577; margin-top: 4px; }
+  .inbox iframe { width: 100%; height: 900px; border: 0; display: block; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } .meta { position: static; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pratonton templat emel — Sistem Permohonan JOC</h1>
+  <p>Ini adalah emel sebenar yang akan dihantar (dijana daripada fail yang sama digunakan oleh pelayan: <code>apps-script/src/EmailTemplates.js</code>). Butang biru dalam emel membuka terus permohonan berkenaan dalam sistem — dalam pratonton ini ia membuka mock supaya anda boleh cuba.</p>
+</header>
+<div class="bar" id="kinds"></div>
+<div class="bar"><button data-w="640" class="on">Saiz komputer</button><button data-w="380">Saiz telefon</button></div>
+<main>
+  <aside class="meta" id="meta"></aside>
+  <div class="inbox" id="inbox" style="max-width:640px">
+    <div class="top"><div class="subj" id="subj"></div><div class="from">Daripada: <b>Sistem JOC FKTEN</b> &lt;fkten.digital@unimap.edu.my&gt;</div></div>
+    <iframe id="frame" title="Kandungan emel"></iframe>
+  </div>
+</main>
+
+<script src="js/EmailTemplates.js"></script>
+<script>
+  var base = location.href.replace(/preview-email\.html.*$/, 'index.html');
+  var sample = {
+    ref_no: 'JOC-FKTEN-2026-0007', programme_name: 'Pembantu Makmal VLSI Sem 1 2026/2027', organiser: 'Makmal Reka Bentuk VLSI, JES',
+    applicant_name: 'Dr. Aina binti Rahman', applicant_email: 'aina.rahman@unimap.edu.my', department: 'JES', job_title: 'Pembantu Makmal',
+    num_students: 3, hours_per_student: 180, period: 'Semester Akademik', start_date: '16 Nov 2026', end_date: '29 Jan 2027',
+    estimated_cost: 'RM 3,240.00', letter_ref: 'UniMAP/FKTEN/HEPA/JOC/2026/004',
+    comments: 'Sila nyatakan jadual kerja mingguan pelajar dan lampirkan senarai stesen kerja yang terlibat.',
+  };
+  var KINDS = [
+    ['SUBMITTED_TO_REVIEWER', 'Permohonan baharu → Penyemak', 'Semua Penyemak aktif', '—', 'Apabila pemohon menekan "Hantar permohonan".', 'review'],
+    ['RESUBMITTED_TO_REVIEWER', 'Dihantar semula → Penyemak', 'Semua Penyemak aktif', '—', 'Apabila pemohon menghantar semula selepas pindaan.', 'review'],
+    ['AMEND_TO_APPLICANT', 'Pindaan → Pemohon', 'Pemohon', 'Semua Penyemak', 'Apabila TD HEPA memilih "Pindaan".', 'app'],
+    ['REJECTED_TO_APPLICANT', 'Tolak → Pemohon', 'Pemohon', 'Semua Penyemak', 'Apabila TD HEPA memilih "Tolak".', 'app'],
+    ['APPROVED_TO_APPLICANT', 'Lulus → Pemohon', 'Pemohon', 'Semua Penyemak', 'Apabila TD HEPA memilih "Lulus". Surat kelulusan PDF dilampirkan.', 'app'],
+    ['APPROVED_TO_CGEE', 'Lulus → CGEE', 'cgee@unimap.edu.my', '—', 'Apabila diluluskan. Dihantar hanya jika Tetapan › "Hantar kepada CGEE" = YA.', ''],
+  ];
+  var current = 0;
+  var kindsBar = document.getElementById('kinds');
+  KINDS.forEach(function (k, i) {
+    var b = document.createElement('button'); b.textContent = k[1]; b.onclick = function () { current = i; show(); };
+    kindsBar.appendChild(b);
+  });
+  function show() {
+    var k = KINDS[current];
+    [].forEach.call(kindsBar.children, function (b, i) { b.classList.toggle('on', i === current); });
+    var d = Object.assign({}, sample, { link: base + '?open=APP-000002' });
+    var mail = jocEmail_(k[0], d);
+    document.getElementById('subj').textContent = mail.subject;
+    var f = document.getElementById('frame');
+    // links inside the email open in a new tab
+    f.srcdoc = '<base target="_blank">' + mail.html;
+    document.getElementById('meta').innerHTML =
+      '<h3>' + k[1] + '</h3><dl><dt>Kepada</dt><dd>' + k[2] + '</dd><dt>s.k.</dt><dd>' + k[3] + '</dd><dt>Templat</dt><dd><code>' + k[0] + '</code></dd></dl>' +
+      '<div class="when"><b>Bila dihantar:</b> ' + k[4] + '</div>' +
+      (k[5] ? '<div class="when"><b>Butang membuka:</b> ' + (k[5] === 'review' ? 'halaman semakan (peranan Penyemak)' : 'halaman permohonan (pemohon) — Penyemak yang menerima salinan akan dibawa ke halaman semakan') + '</div>' : '<div class="when"><b>Tiada butang:</b> CGEE tidak menggunakan sistem ini; maklumat ringkas + surat PDF sahaja.</div>') +
+      (k[0] === 'APPROVED_TO_CGEE' ? '<div class="cgee">Suis CGEE sekarang: TIDAK — emel ini hanya direkod dalam log.</div>' : '');
+  }
+  [].forEach.call(document.querySelectorAll('[data-w]'), function (b) {
+    b.onclick = function () {
+      [].forEach.call(document.querySelectorAll('[data-w]'), function (x) { x.classList.toggle('on', x === b); });
+      document.getElementById('inbox').style.maxWidth = b.dataset.w + 'px';
+    };
+  });
+  show();
+</script>
+</body>
+</html>

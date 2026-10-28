@@ -1,0 +1,935 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual Pengguna · Sistem Permohonan JOC FKTEN</title>
+<meta name="description" content="Manual pengguna interaktif Sistem Permohonan JOC, Fakulti Kejuruteraan & Teknologi Elektronik (FKTEN), Universiti Malaysia Perlis.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230e2262'/%3E%3Ctext x='32' y='41' font-family='Arial' font-weight='800' font-size='22' fill='%23f5c63a' text-anchor='middle'%3EJOC%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<script>
+  // theme before first paint: saved choice, else the device setting
+  (function () { var t = null; try { t = localStorage.getItem('jocman_theme'); } catch (e) {}
+    if (t) document.documentElement.dataset.theme = t; })();
+</script>
+<style>
+  :root {
+    --navy: #0e2262; --navy-2: #1b3a8f; --gold: #f5c63a; --red: #ff1a1a;
+    --bg: #f3f5fa; --surface: #ffffff; --surface-2: #eef1f8; --text: #0f172a; --muted: #5b6577; --border: #dde3ee;
+    --accent: var(--navy); --accent-soft: #e6ebf8; --shadow: 0 10px 40px rgba(14, 34, 98, .12);
+    --ok: #15803d; --warn: #b45309; --err: #b91c1c; --info: #1d4ed8;
+    --font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; --display: "Plus Jakarta Sans", var(--font);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0a1230; --surface: #111c45; --surface-2: #17245a; --text: #e8ecf8; --muted: #9aa6c8; --border: #24336e;
+      --accent: #f5c63a; --accent-soft: rgba(245, 198, 58, .14); --shadow: 0 10px 40px rgba(0, 0, 0, .45);
+      --ok: #4ade80; --warn: #fbbf24; --err: #f87171; --info: #93b4ff; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0a1230; --surface: #111c45; --surface-2: #17245a; --text: #e8ecf8; --muted: #9aa6c8; --border: #24336e;
+    --accent: #f5c63a; --accent-soft: rgba(245, 198, 58, .14); --shadow: 0 10px 40px rgba(0, 0, 0, .45);
+    --ok: #4ade80; --warn: #fbbf24; --err: #f87171; --info: #93b4ff; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); }
+  button { font: inherit; color: inherit; }
+
+  /* ---------- top bar */
+  .top { position: fixed; inset: 0 0 auto 0; height: 60px; display: flex; align-items: center; gap: 12px; padding: 0 20px; z-index: 20;
+    background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+  .top .name { font-family: var(--display); font-weight: 800; font-size: .98rem; line-height: 1.15; }
+  .top .name small { display: block; font-family: var(--font); font-weight: 600; font-size: .72rem; color: var(--muted); }
+  .top .sp { flex: 1; }
+  .tb { height: 38px; min-width: 38px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 700; font-size: .84rem; text-decoration: none; color: var(--text); }
+  .tb:hover { border-color: var(--accent); }
+  .tb.gold { background: var(--gold); border-color: var(--gold); color: #0a1230; }
+  .tb svg { width: 17px; height: 17px; }
+  .progress { position: absolute; left: 0; bottom: -1px; height: 3px; background: var(--gold); transition: width .3s; }
+
+  .logomark { position: relative; overflow: hidden; flex: none; display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 11px; background: linear-gradient(145deg, #ffe08a 0%, #f5c63a 45%, #e9a800 100%);
+    box-shadow: 0 6px 16px rgba(245, 198, 58, .32), inset 0 1px 0 rgba(255, 255, 255, .6); }
+  .logomark b { font-family: var(--display); font-weight: 800; font-size: 13px; line-height: 1; color: #0a1230; }
+  .logomark i { display: block; width: 62%; height: 1.5px; background: rgba(10, 18, 48, .55); margin: 3px 0 2px; }
+  .logomark em { font-style: normal; font-weight: 800; font-size: 6.4px; letter-spacing: .16em; padding-left: .16em; line-height: 1; color: var(--red); }
+  .logomark.xl { width: 96px; height: 96px; border-radius: 24px; } .logomark.xl b { font-size: 31px; } .logomark.xl em { font-size: 14px; } .logomark.xl i { height: 3px; margin: 6px 0 5px; }
+
+  /* ---------- slides */
+  .deck { position: fixed; inset: 60px 0 58px 0; }
+  .slide { position: absolute; inset: 0; padding: 28px clamp(18px, 4vw, 56px); overflow-y: auto; opacity: 0; visibility: hidden; transform: translateX(30px);
+    transition: opacity .35s, transform .35s, visibility .35s; }
+  .slide.on { opacity: 1; visibility: visible; transform: none; }
+  .slide.prev { transform: translateX(-30px); }
+  .inner { max-width: 1240px; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; justify-content: center; }
+  .kicker { font-size: .74rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+  .kicker .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+  h1, h2, h3 { font-family: var(--display); margin: 0; letter-spacing: -.01em; }
+  h2 { font-size: clamp(1.5rem, 2.6vw, 2.25rem); line-height: 1.15; }
+  h3 { font-size: 1.05rem; }
+  .lead { font-size: clamp(.98rem, 1.25vw, 1.12rem); color: var(--muted); line-height: 1.6; margin: 12px 0 0; max-width: 760px; }
+  p { line-height: 1.6; }
+
+  /* screenshot slides */
+  .split { display: grid; grid-template-columns: minmax(300px, 0.85fr) 1.5fr; gap: clamp(20px, 3vw, 44px); align-items: center; }
+  .split.rev { grid-template-columns: 1.5fr minmax(300px, 0.85fr); }
+  .split.rev .txt { order: 2; }
+  .frame { margin: 0; border-radius: 14px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--border); cursor: zoom-in; position: relative; }
+  .frame .bar { height: 26px; display: flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+  .frame .bar span { width: 9px; height: 9px; border-radius: 50%; background: #cbd3e3; }
+  .frame .bar span:nth-child(1) { background: #ff6b6b; } .frame .bar span:nth-child(2) { background: #ffc94d; } .frame .bar span:nth-child(3) { background: #3ccf6e; }
+  .frame img { display: block; width: 100%; height: auto; }
+  .frame .zoom { position: absolute; right: 10px; bottom: 10px; background: rgba(10, 18, 48, .72); color: #fff; font-size: .72rem; font-weight: 700; padding: 5px 10px; border-radius: 999px; opacity: 0; transition: opacity .2s; }
+  .frame:hover .zoom { opacity: 1; }
+  .frames2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .phone { max-width: 300px; margin: 0 auto; border-radius: 34px; border: 9px solid #0a1230; overflow: hidden; box-shadow: var(--shadow); cursor: zoom-in; }
+  .phone img { display: block; width: 100%; }
+
+  ol.steps { list-style: none; padding: 0; margin: 20px 0 0; counter-reset: s; display: grid; gap: 12px; }
+  ol.steps li { counter-increment: s; position: relative; padding: 3px 0 0 42px; min-height: 30px; line-height: 1.5; font-size: .96rem; }
+  ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--navy); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: .85rem; }
+  :root[data-theme="dark"] ol.steps li::before { background: var(--gold); color: #0a1230; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) ol.steps li::before { background: var(--gold); color: #0a1230; } }
+  ul.ticks { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 9px; }
+  ul.ticks li { padding-left: 26px; position: relative; line-height: 1.5; font-size: .96rem; }
+  ul.ticks li::before { content: '✓'; position: absolute; left: 0; top: 0; color: var(--ok); font-weight: 800; }
+  .tip { margin-top: 18px; padding: 12px 14px; border-radius: 12px; background: var(--accent-soft); border-left: 4px solid var(--gold); font-size: .9rem; line-height: 1.55; }
+  .tip.warn { background: color-mix(in srgb, var(--warn) 12%, transparent); border-left-color: var(--warn); }
+  .ui { display: inline-block; padding: 1px 8px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--border); font-weight: 700; font-size: .88em; white-space: nowrap; }
+  .ui.gold { background: var(--gold); border-color: var(--gold); color: #0a1230; }
+
+  /* cards */
+  .cards { display: grid; gap: 16px; margin-top: 26px; }
+  .c2 { grid-template-columns: repeat(2, 1fr); } .c3 { grid-template-columns: repeat(3, 1fr); } .c4 { grid-template-columns: repeat(4, 1fr); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; box-shadow: 0 2px 10px rgba(14, 34, 98, .05); }
+  .card .ico { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-size: 1.25rem; margin-bottom: 12px; }
+  .card p { margin: 6px 0 0; color: var(--muted); font-size: .92rem; }
+  .big { font-family: var(--display); font-size: 2rem; font-weight: 800; color: var(--accent); line-height: 1; }
+  a.card { text-decoration: none; color: inherit; transition: transform .15s, border-color .15s; }
+  a.card:hover { transform: translateY(-3px); border-color: var(--gold); }
+
+  /* flow */
+  .flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 28px; position: relative; }
+  .flow .card { position: relative; cursor: pointer; transition: border-color .2s, transform .2s; }
+  .flow .card.on, .flow .card:hover { border-color: var(--gold); transform: translateY(-3px); }
+  .flow .n { width: 34px; height: 34px; border-radius: 50%; background: var(--gold); color: #0a1230; display: grid; place-items: center; font-weight: 800; margin-bottom: 10px; }
+  .flow .card:not(:last-child)::after { content: '→'; position: absolute; right: -14px; top: 50%; transform: translate(50%, -50%); color: var(--muted); font-weight: 800; }
+  .flow-detail { margin-top: 16px; min-height: 64px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chip { padding: 5px 12px; border-radius: 999px; font-size: .8rem; font-weight: 700; border: 1px solid transparent; }
+  .s-draft { background: #eef0f4; color: #475569; } .s-sub { background: #dbeafe; color: #1e40af; } .s-amend { background: #fef3c7; color: #92400e; }
+  .s-resub { background: #e0e7ff; color: #3730a3; } .s-ok { background: #dcfce7; color: #166534; } .s-rej { background: #fee2e2; color: #991b1b; }
+
+  /* table */
+  table.t { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: .92rem; background: var(--surface); border-radius: 14px; overflow: hidden; box-shadow: 0 2px 10px rgba(14, 34, 98, .05); }
+  table.t th, table.t td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.t th { background: var(--surface-2); font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  table.t tr:last-child td { border-bottom: 0; }
+
+  /* cover & section */
+  .slide.cover, .slide.section { background: radial-gradient(1000px 600px at 85% 15%, rgba(245, 198, 58, .18), transparent 60%), linear-gradient(135deg, #0a1230, #0e2262 55%, #1b3a8f); color: #fff; }
+  .cover .inner, .section .inner { align-items: flex-start; }
+  .cover h1 { font-size: clamp(2.2rem, 5vw, 4rem); line-height: 1.05; margin-top: 26px; }
+  .cover .fac { color: #c9d3f2; font-weight: 600; margin-top: 12px; font-size: clamp(1rem, 1.4vw, 1.2rem); }
+  .cover .eyebrow { display: inline-block; margin-top: 30px; padding: 6px 14px; border-radius: 999px; background: rgba(245, 198, 58, .16); color: var(--gold); font-weight: 800; font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; }
+  .cover .btns { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 34px; }
+  .cover .btn { padding: 13px 22px; border-radius: 12px; font-weight: 800; text-decoration: none; border: 1px solid rgba(255, 255, 255, .25); color: #fff; background: rgba(255, 255, 255, .06); cursor: pointer; font-size: .95rem; }
+  .cover .btn.gold { background: var(--gold); color: #0a1230; border-color: var(--gold); }
+  .cover .hint { margin-top: 26px; color: #9fb0e0; font-size: .85rem; }
+  .cover .unimap { position: absolute; right: clamp(18px, 4vw, 56px); top: 28px; background: #fff; border-radius: 12px; padding: 8px 12px; }
+  .cover .unimap img { height: 44px; display: block; }
+  .section .num { font-family: var(--display); font-size: clamp(4rem, 10vw, 8rem); font-weight: 800; color: var(--gold); line-height: 1; opacity: .9; }
+  .section h2 { font-size: clamp(2rem, 4vw, 3.2rem); margin-top: 10px; }
+  .section .lead { color: #c9d3f2; }
+  .section .who { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+  .section .who span { padding: 6px 14px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, .25); font-weight: 700; font-size: .85rem; }
+
+  /* faq */
+  details { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 0 16px; }
+  details + details { margin-top: 10px; }
+  summary { cursor: pointer; padding: 14px 0; font-weight: 700; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  summary::after { content: '+'; color: var(--accent); font-weight: 800; font-size: 1.2rem; line-height: 1; }
+  details[open] summary::after { content: '–'; }
+  details p { margin: 0 0 14px; color: var(--muted); font-size: .94rem; }
+  .faq { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; align-items: start; }
+  .faq > div > details + details { margin-top: 10px; }
+
+  /* bottom nav */
+  .bottom { position: fixed; inset: auto 0 0 0; height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 20px; z-index: 20;
+    border-top: 1px solid var(--border); background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); }
+  .bottom .count { font-weight: 700; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bottom .title { font-weight: 700; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; text-align: center; }
+  .navbtn { height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; }
+  .navbtn.next { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .navbtn:disabled { opacity: .4; cursor: default; }
+
+  /* overview */
+  .overview { position: fixed; inset: 0; z-index: 40; background: color-mix(in srgb, var(--bg) 96%, transparent); backdrop-filter: blur(6px); overflow-y: auto; padding: 24px clamp(16px, 4vw, 48px); display: none; }
+  .overview.on { display: block; }
+  .ov-head { display: flex; justify-content: space-between; align-items: center; max-width: 1240px; margin: 0 auto 18px; }
+  .ov-group { max-width: 1240px; margin: 0 auto 22px; }
+  .ov-group h3 { font-size: .78rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  .ov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .ov-item { text-align: left; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-weight: 600; font-size: .88rem; display: flex; gap: 10px; align-items: baseline; }
+  .ov-item b { color: var(--accent); font-variant-numeric: tabular-nums; min-width: 22px; }
+  .ov-item.on { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold); }
+
+  /* lightbox */
+  .lightbox { position: fixed; inset: 0; z-index: 50; background: rgba(5, 10, 30, .9); display: none; align-items: center; justify-content: center; padding: 24px; cursor: zoom-out; }
+  .lightbox.on { display: flex; }
+  .lightbox img { max-width: 100%; max-height: 100%; border-radius: 10px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
+  .lightbox .x { position: absolute; top: 16px; right: 20px; color: #fff; font-size: .85rem; font-weight: 700; }
+
+  @media (max-width: 900px) {
+    .split, .split.rev { grid-template-columns: 1fr; }
+    .split.rev .txt { order: 0; }
+    .c3, .c4, .flow { grid-template-columns: 1fr 1fr; }
+    .flow .card::after { display: none; }
+    .faq { grid-template-columns: 1fr; }
+    .faq > div + div { margin-top: 10px; }
+    .inner { justify-content: flex-start; }
+    .top .hide-sm, .bottom .title { display: none; }
+  }
+  @media (max-width: 560px) {
+    .c2, .c3, .c4, .flow, .frames2 { grid-template-columns: 1fr; }
+    .top { padding: 0 12px; } .top .name small { display: none; }
+    .cover .unimap { position: static; display: inline-block; margin-bottom: 8px; }
+    table.t { font-size: .84rem; } table.t th, table.t td { padding: 9px 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .slide { transition: none; } }
+  @media print {
+    body { overflow: visible; } .top, .bottom, .overview, .lightbox { display: none !important; }
+    .deck { position: static; } .slide { position: relative; opacity: 1; visibility: visible; transform: none; page-break-after: always; overflow: visible; min-height: 100vh; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <span class="logomark"><b>JOC</b><i></i><em>FKTEN</em></span>
+  <div class="name">Manual Pengguna<small>Sistem Permohonan JOC · FKTEN</small></div>
+  <div class="sp"></div>
+  <a class="tb gold hide-sm" href="demo/index.html" target="_blank" rel="noopener">Cuba demo ↗</a>
+  <button class="tb" id="btn-ov" title="Semua slaid (O)" aria-label="Semua slaid"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span class="hide-sm">Kandungan</span></button>
+  <button class="tb" id="btn-theme" title="Tema cerah / gelap" aria-label="Tukar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+  <button class="tb hide-sm" id="btn-fs" title="Skrin penuh (F)" aria-label="Skrin penuh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+  <div class="progress" id="progress"></div>
+</header>
+
+<main class="deck" id="deck">
+
+  <!-- ============================== PENGENALAN -->
+  <section class="slide cover" data-title="Manual Pengguna" data-group="Pengenalan">
+    <div class="unimap"><img src="assets/unimap_logo.png" alt="Universiti Malaysia Perlis"></div>
+    <div class="inner">
+      <span class="logomark xl"><b>JOC</b><i></i><em>FKTEN</em></span>
+      <span class="eyebrow">Manual Pengguna</span>
+      <h1>Sistem Permohonan JOC</h1>
+      <div class="fac">Fakulti Kejuruteraan &amp; Teknologi Elektronik (FKTEN) · Universiti Malaysia Perlis</div>
+      <p class="lead" style="color:#c9d3f2">Saringan peringkat fakulti bagi permohonan MySISWA Job on Campus (JoC) — untuk Pemohon, TD HEPA (Penyemak) dan Pentadbir Sistem.</p>
+      <div class="btns">
+        <button class="btn gold" data-go="next">Mula →</button>
+        <button class="btn" data-ov>Lihat kandungan</button>
+        <a class="btn" href="demo/index.html" target="_blank" rel="noopener">Cuba demo ↗</a>
+      </div>
+      <div class="hint">Guna kekunci ← → atau leret skrin untuk bertukar slaid. Klik gambar skrin untuk besarkan.</div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Kandungan" data-group="Pengenalan">
+    <div class="inner">
+      <div class="kicker"><span class="dot"></span>Kandungan</div>
+      <h2>Apa yang ada dalam manual ini</h2>
+      <p class="lead">Pilih bahagian yang berkaitan dengan peranan anda. Semua staf boleh mula dengan Bahagian 1.</p>
+      <div class="cards c4">
+        <a class="card" href="#" data-jump="pengenalan"><div class="ico">📘</div><h3>1 · Pengenalan</h3><p>Apa itu JoC, aliran proses, peranan dan cara log masuk.</p></a>
+        <a class="card" href="#" data-jump="pemohon"><div class="ico">📝</div><h3>2 · Pemohon</h3><p>Isi borang, lampirkan bukti, hantar, buat pindaan dan muat turun surat.</p></a>
+        <a class="card" href="#" data-jump="penyemak"><div class="ico">✅</div><h3>3 · TD HEPA (Penyemak)</h3><p>Semak permohonan, buat keputusan, surat kelulusan dan laporan.</p></a>
+        <a class="card" href="#" data-jump="pentadbir"><div class="ico">⚙️</div><h3>4 · Pentadbir</h3><p>Urus pengguna dan peranan, tetapan emel dan log emel.</p></a>
+      </div>
+      <div class="cards c2" style="margin-top:16px">
+        <a class="card" href="#" data-jump="faq"><div class="ico">❓</div><h3>Soalan lazim</h3><p>Jawapan ringkas kepada soalan yang biasa ditanya.</p></a>
+        <a class="card" href="#" data-jump="demo"><div class="ico">🖱️</div><h3>Cuba sendiri</h3><p>Demo dengan data contoh — klik dan cuba setiap peranan tanpa menjejaskan sistem sebenar.</p></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Apa itu MySISWA JoC?" data-group="Pengenalan" data-anchor="pengenalan">
+    <div class="inner">
+      <div class="kicker"><span class="dot"></span>Pengenalan</div>
+      <h2>Apa itu MySISWA Job on Campus (JoC)?</h2>
+      <p class="lead">Inisiatif Kementerian Pendidikan Tinggi (Belanjawan 2026) yang memberi peluang kepada mahasiswa universiti awam bekerja sambilan di dalam kampus — menjana pendapatan sambil menimba pengalaman kerja sebenar. Di UniMAP, program ini diselaraskan oleh CGEE.</p>
+      <div class="cards c4">
+        <div class="card"><div class="big">RM6.00</div><p>kadar bayaran sejam</p></div>
+        <div class="card"><div class="big">20 jam</div><p>maksimum seminggu semasa semester</p></div>
+        <div class="card"><div class="big">40 jam</div><p>maksimum seminggu semasa cuti semester</p></div>
+        <div class="card"><div class="big">5</div><p>kluster: Pentadbiran &amp; Operasi · Perkhidmatan · Teknikal · Project Based / Profesional · Keusahawanan</p></div>
+      </div>
+      <div class="tip warn"><b>Tidak dibenarkan:</b> kerja berisiko tinggi atau kerja 3D (kotor, bahaya, sukar). Syarat pelajar tertakluk kepada garis panduan terkini UniMAP / CGEE.</div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Kenapa sistem ini?" data-group="Pengenalan">
+    <div class="inner">
+      <div class="kicker"><span class="dot"></span>Pengenalan</div>
+      <h2>Kenapa saringan peringkat fakulti?</h2>
+      <p class="lead">Sebelum staf mendaftar tawaran latihan di portal kebangsaan MySISWA@JoC, setiap program JoC di FKTEN disemak dan diluluskan dahulu oleh Timbalan Dekan (Hal Ehwal Pelajar dan Alumni) — TD HEPA.</p>
+      <div class="cards c3">
+        <div class="card"><div class="ico">🗂️</div><h3>Satu tempat</h3><p>Borang, bukti kelulusan, ulasan dan keputusan disimpan bersama — tiada lagi emel berselerak.</p></div>
+        <div class="card"><div class="ico">📨</div><h3>Emel automatik</h3><p>Pemohon, Penyemak dan CGEE dimaklumkan secara automatik pada setiap peringkat.</p></div>
+        <div class="card"><div class="ico">📄</div><h3>Surat kelulusan PDF</h3><p>Surat rasmi berletterhead FKTEN dijana serta-merta apabila diluluskan.</p></div>
+        <div class="card"><div class="ico">🔒</div><h3>Akaun UniMAP sahaja</h3><p>Log masuk dengan akaun Google @unimap.edu.my. Fail disimpan secara peribadi dalam Google Drive fakulti.</p></div>
+        <div class="card"><div class="ico">🕓</div><h3>Rekod lengkap</h3><p>Setiap tindakan direkod (siapa, bila, versi) untuk rujukan dan laporan.</p></div>
+        <div class="card"><div class="ico">📱</div><h3>Boleh guna di telefon</h3><p>Paparan menyesuaikan diri dengan komputer, tablet dan telefon.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Aliran proses" data-group="Pengenalan">
+    <div class="inner">
+      <div class="kicker"><span class="dot"></span>Pengenalan</div>
+      <h2>Aliran proses dalam 4 langkah</h2>
+      <p class="lead">Klik setiap langkah untuk penerangan.</p>
+      <div class="flow" id="flow">
+        <div class="card on" data-d="Pemohon mengisi butiran program JoC (5 langkah ringkas) dan melampirkan bukti kelulusan program — kertas kerja, emel atau surat kelulusan. Draf disimpan secara automatik."><div class="n">1</div><h3>Mohon di sistem ini</h3><p>Pemohon</p></div>
+        <div class="card" data-d="Semua Penyemak menerima emel. TD HEPA menyemak dan memilih Lulus, Pindaan atau Tolak. Jika Pindaan, pemohon membetulkan dan menghantar semula — medan yang berubah ditanda untuk Penyemak."><div class="n">2</div><h3>Semakan TD HEPA</h3><p>Penyemak</p></div>
+        <div class="card" data-d="Apabila diluluskan, surat kelulusan PDF dijana dengan nombor rujukan (cth. UniMAP/FKTEN/HEPA/JOC/2026/001) dan dihantar melalui emel kepada pemohon (s.k. Penyemak) dan CGEE."><div class="n">3</div><h3>Surat kelulusan</h3><p>Automatik</p></div>
+        <div class="card" data-d="Pemohon mendaftar tawaran latihan di portal MySISWA@JoC (joc.mohe.gov.my) menggunakan maklumat yang diluluskan. Fail CSV disediakan untuk memudahkan salinan."><div class="n">4</div><h3>Daftar di portal JoC</h3><p>Pemohon</p></div>
+      </div>
+      <div class="card flow-detail" id="flow-detail"></div>
+      <div class="chips"><span class="small" style="font-weight:700;color:var(--muted);align-self:center">Status:</span>
+        <span class="chip s-draft">Draf</span><span class="chip s-sub">Dihantar</span><span class="chip s-amend">Perlu pindaan</span><span class="chip s-resub">Dihantar semula</span><span class="chip s-ok">Lulus</span><span class="chip s-rej">Ditolak</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Peranan pengguna" data-group="Pengenalan">
+    <div class="inner">
+      <div class="kicker"><span class="dot"></span>Pengenalan</div>
+      <h2>Peranan dalam sistem</h2>
+      <p class="lead">Setiap staf yang log masuk secara automatik menjadi <b>Pemohon</b>. Peranan lain diberikan oleh Pentadbir. Satu akaun boleh mempunyai lebih daripada satu peranan.</p>
+      <div class="cards c4">
+        <div class="card"><div class="ico">📝</div><h3>Pemohon</h3><p>Semua staf FKTEN. Mohon JoC untuk program, buat pindaan, muat turun surat kelulusan.</p></div>
+        <div class="card"><div class="ico">✅</div><h3>Penyemak</h3><p>TD HEPA (dan penyemak lain yang dilantik). Semak permohonan dan buat keputusan.</p></div>
+        <div class="card"><div class="ico">⚙️</div><h3>Pentadbir Sistem</h3><p>Urus pengguna, peranan, senarai pilihan dan tetapan emel.</p></div>
+        <div class="card"><div class="ico">📊</div><h3>Pemerhati</h3><p>Pengurusan fakulti (cth. Dekan). Lihat semua permohonan dan laporan sahaja.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Log masuk" data-group="Pengenalan">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pengenalan</div>
+        <h2>Log masuk</h2>
+        <ol class="steps">
+          <li>Buka pautan sistem yang dikongsi oleh fakulti.</li>
+          <li>Klik <span class="ui">Log masuk dengan akaun UniMAP</span>.</li>
+          <li>Pilih akaun <b>@unimap.edu.my</b> anda di skrin Google.</li>
+          <li>Kali pertama sahaja: lengkapkan profil (jabatan, jawatan, no. telefon).</li>
+        </ol>
+        <div class="tip">Akaun Gmail peribadi <b>tidak dibenarkan</b>. Jika anda log masuk ke beberapa akaun Google, pastikan akaun UniMAP yang dipilih.</div>
+      </div>
+      <div class="frames2">
+        <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/01-landing.jpg" alt="Halaman utama sistem" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+        <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/02-chooser.jpg" alt="Pilih akaun" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Pilih peranan" data-group="Pengenalan">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pengenalan</div>
+        <h2>Pilih peranan</h2>
+        <p class="lead">Jika akaun anda mempunyai lebih daripada satu peranan (contohnya TD HEPA ialah Pemohon, Penyemak dan Pentadbir), sistem akan bertanya peranan untuk sesi ini.</p>
+        <ul class="ticks">
+          <li>Klik kad peranan untuk masuk.</li>
+          <li>Tukar peranan bila-bila masa melalui menu di bahagian atas skrin atau menu avatar.</li>
+          <li>Pilihan anda diingati untuk lawatan seterusnya.</li>
+        </ul>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/03-roles.jpg" alt="Pilih peranan" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <!-- ============================== PEMOHON -->
+  <section class="slide section" data-title="Bahagian 2: Pemohon" data-group="Pemohon" data-anchor="pemohon">
+    <div class="inner">
+      <div class="num">02</div>
+      <h2>Pemohon</h2>
+      <p class="lead">Dari profil hingga surat kelulusan — langkah demi langkah untuk staf yang memohon JoC.</p>
+      <div class="who"><span>Profil</span><span>Borang 5 langkah</span><span>Bukti kelulusan</span><span>Pindaan</span><span>Surat &amp; portal JoC</span></div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Lengkapkan profil" data-group="Pemohon">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pemohon</div>
+        <h2>Lengkapkan profil (kali pertama)</h2>
+        <ol class="steps">
+          <li>Semak nama penuh anda — nama ini dicetak pada surat kelulusan.</li>
+          <li>Pilih <b>jabatan</b> dan isi <b>jawatan</b>.</li>
+          <li>Isi no. telefon untuk tujuan susulan (pilihan).</li>
+          <li>Klik <span class="ui">Simpan</span>.</li>
+        </ol>
+        <div class="tip">Profil boleh dikemas kini kemudian melalui menu avatar › <b>Profil saya</b>.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/04-profile.jpg" alt="Profil" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Laman utama pemohon" data-group="Pemohon">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pemohon</div>
+        <h2>Laman utama</h2>
+        <ul class="ticks">
+          <li>Ringkasan bilangan permohonan: Draf, Dalam semakan, Perlu pindaan, Lulus.</li>
+          <li>Senarai permohonan terkini dengan status berwarna.</li>
+          <li>Butang <span class="ui gold">+ Permohonan Baharu</span> untuk mula memohon.</li>
+          <li>Butang <span class="ui">⟳</span> di bahagian atas untuk mengemas kini status terkini.</li>
+        </ul>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/05-applicant-home.jpg" alt="Laman utama pemohon" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Sebelum mula" data-group="Pemohon">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pemohon</div>
+        <h2>Sebelum anda mula</h2>
+        <p class="lead">Halaman ini meringkaskan syarat JoC. Sediakan perkara berikut sebelum mengisi borang:</p>
+        <ul class="ticks">
+          <li>Kertas kerja / emel / surat kelulusan program (PDF atau gambar).</li>
+          <li>Tarikh mula dan tamat, serta jumlah jam bagi setiap pelajar.</li>
+          <li>Skop tugas pelajar (satu tugas setiap baris).</li>
+          <li>Senarai pelajar (no. matrik &amp; nama) jika telah dikenal pasti.</li>
+        </ul>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/06-apply.jpg" alt="Sebelum mula" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Borang 1: Program" data-group="Pemohon">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pemohon · Langkah 1 / 5</div>
+        <h2>Maklumat program</h2>
+        <ol class="steps">
+          <li>Nama program / aktiviti.</li>
+          <li>Penganjur / unit — taip bebas (makmal, kelab, projek, rakan industri).</li>
+          <li>Penerangan ringkas / objektif (2–3 baris).</li>
+          <li>Jenis tawaran dan jenis tempoh latihan — sama seperti pilihan di portal JoC.</li>
+        </ol>
+        <div class="tip">Draf <b>disimpan secara automatik</b> semasa anda menaip. Anda boleh keluar dan sambung kemudian.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/07-form-step1.jpg" alt="Langkah 1" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Borang 2: Keperluan JOC" data-group="Pemohon">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pemohon · Langkah 2 / 5</div>
+        <h2>Keperluan JOC</h2>
+        <ol class="steps">
+          <li>Jawatan / jenis latihan dan kategori latihan.</li>
+          <li>Bilangan pelajar dan jumlah jam setiap pelajar.</li>
+          <li>Tarikh mula dan tarikh tamat.</li>
+          <li>Skop tugas — tambah satu tugas setiap baris, susun dengan anak panah.</li>
+        </ol>
+        <div class="tip"><b>Anggaran kos</b> dikira automatik (pelajar × jam × RM6). Sistem juga memaparkan purata jam seminggu supaya anda boleh pastikan ia dalam had JoC.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/07-form-step2.jpg" alt="Langkah 2" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Borang 3: Pelajar" data-group="Pemohon">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pemohon · Langkah 3 / 5</div>
+        <h2>Pelajar</h2>
+        <p class="lead">Pilih bagaimana pelajar akan diambil:</p>
+        <ul class="ticks">
+          <li><b>Pelajar telah dikenal pasti</b> — masukkan no. matrik, nama dan program pengajian setiap pelajar.</li>
+          <li><b>Melalui iklan terbuka JOC</b> — tiada senarai diperlukan; pastikan iklan di portal JoC dibuka selepas permohonan diluluskan.</li>
+        </ul>
+        <div class="tip">Jika menamakan pelajar, bilangan nama perlu sepadan dengan bilangan pelajar di Langkah 2.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/07-form-step3.jpg" alt="Langkah 3" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Borang 4: Bukti kelulusan" data-group="Pemohon">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pemohon · Langkah 4 / 5</div>
+        <h2>Bukti kelulusan program</h2>
+        <ol class="steps">
+          <li>Klik kotak muat naik (atau seret fail ke dalamnya).</li>
+          <li>Pilih jenis bukti: kertas kerja, emel kelulusan, surat kelulusan atau lain-lain.</li>
+          <li>Isi siapa yang meluluskan program, jawatan dan tarikh kelulusan.</li>
+        </ol>
+        <div class="tip">Format: PDF, JPG atau PNG — maksimum <b>10 MB</b> setiap fail. Boleh lampir lebih daripada satu fail. Fail disimpan secara peribadi dan hanya boleh dibuka oleh anda dan Penyemak.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/07-form-step4.jpg" alt="Langkah 4" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Borang 5: Semak &amp; hantar" data-group="Pemohon">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pemohon · Langkah 5 / 5</div>
+        <h2>Semak &amp; hantar</h2>
+        <ol class="steps">
+          <li>Semak ringkasan permohonan. Sistem menunjukkan langkah yang belum lengkap.</li>
+          <li>Tandakan <b>perakuan</b>.</li>
+          <li>Klik <span class="ui gold">Hantar permohonan</span>.</li>
+        </ol>
+        <div class="tip">Selepas dihantar, anda menerima <b>nombor rujukan</b> (cth. JOC-FKTEN-2026-0007) dan semua Penyemak dimaklumkan melalui emel. Permohonan tidak boleh diubah kecuali TD HEPA meminta pindaan.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/07-form-step5.jpg" alt="Langkah 5" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Permohonan saya" data-group="Pemohon">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pemohon</div>
+        <h2>Permohonan saya</h2>
+        <ul class="ticks">
+          <li>Semua permohonan anda, termasuk draf, dengan status semasa.</li>
+          <li>Klik permohonan untuk melihat butiran dan <b>sejarah</b> (bila dihantar, disemak, diluluskan).</li>
+          <li><span class="ui">Salin</span> — mulakan permohonan baharu berdasarkan permohonan lama (berguna untuk program berulang setiap semester).</li>
+          <li><span class="ui">Padam draf</span> — hanya untuk draf yang belum dihantar.</li>
+        </ul>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/08-my.jpg" alt="Permohonan saya" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Pindaan diminta" data-group="Pemohon">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pemohon</div>
+        <h2>Jika pindaan diminta</h2>
+        <ol class="steps">
+          <li>Anda menerima emel dengan ulasan TD HEPA. Klik butang dalam emel untuk terus ke permohonan.</li>
+          <li>Baca ulasan dalam kotak kuning, kemudian klik <span class="ui gold">Buat pindaan</span>.</li>
+          <li>Betulkan maklumat atau tambah lampiran, kemudian <b>hantar semula</b>.</li>
+        </ol>
+        <div class="tip">Medan yang anda ubah akan <b>ditanda kuning</b> untuk TD HEPA, supaya semakan semula lebih cepat.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/09-amend.jpg" alt="Pindaan diminta" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Selepas diluluskan" data-group="Pemohon">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pemohon</div>
+        <h2>Selepas diluluskan</h2>
+        <ol class="steps">
+          <li>Emel kelulusan diterima bersama <b>surat kelulusan PDF</b>.</li>
+          <li><span class="ui gold">Surat kelulusan (PDF)</span> — muat turun semula bila-bila masa.</li>
+          <li><span class="ui">Maklumat untuk portal JoC (CSV)</span> — semua maklumat diluluskan mengikut susunan borang JoC.</li>
+          <li>Daftar di <b>joc.mohe.gov.my</b>: Penempatan Latihan › Tawaran Latihan › <b>+ Tambah Tawaran Latihan</b>.</li>
+        </ol>
+        <div class="tip">Kelulusan fakulti ialah <b>langkah pertama</b>. Pendaftaran di portal MySISWA@JoC masih perlu dibuat oleh pemohon untuk tindakan CGEE.</div>
+      </div>
+      <div class="frames2">
+        <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/10-approved.jpg" alt="Permohonan diluluskan" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+        <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/11-letter.jpg" alt="Surat kelulusan" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== PENYEMAK -->
+  <section class="slide section" data-title="Bahagian 3: TD HEPA (Penyemak)" data-group="TD HEPA" data-anchor="penyemak">
+    <div class="inner">
+      <div class="num">03</div>
+      <h2>TD HEPA (Penyemak)</h2>
+      <p class="lead">Menyemak permohonan staf dan membuat keputusan Lulus, Pindaan atau Tolak — dari komputer atau telefon.</p>
+      <div class="who"><span>Laman utama</span><span>Senarai semakan</span><span>Keputusan</span><span>Surat kelulusan</span><span>Emel</span><span>Laporan</span></div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Laman utama penyemak" data-group="TD HEPA">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>TD HEPA</div>
+        <h2>Laman utama Penyemak</h2>
+        <ul class="ticks">
+          <li>Berapa permohonan <b>menunggu semakan</b>, dan berapa lama yang paling lama menunggu.</li>
+          <li>Jumlah diluluskan, jumlah jam pelajar dan anggaran kos.</li>
+          <li>Senarai menunggu semakan — klik untuk terus menyemak.</li>
+          <li>Butang <span class="ui gold">Buka senarai semakan</span>.</li>
+        </ul>
+        <div class="tip">Emel pemberitahuan juga mempunyai butang yang membuka terus halaman semakan permohonan berkenaan.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/12-reviewer-home.jpg" alt="Laman utama penyemak" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Senarai semakan" data-group="TD HEPA">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>TD HEPA</div>
+        <h2>Senarai semakan</h2>
+        <ul class="ticks">
+          <li>Tab: Menunggu · Perlu pindaan · Lulus · Ditolak · Semua.</li>
+          <li>Cari mengikut program, rujukan atau nama pemohon; tapis mengikut jabatan.</li>
+          <li>Permohonan paling lama di atas. Lebih 5 hari menunggu ditanda <b style="color:var(--err)">merah</b>.</li>
+          <li><span class="ui">Eksport CSV</span> untuk senarai semasa.</li>
+        </ul>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/13-review-list.jpg" alt="Senarai semakan" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Halaman semakan" data-group="TD HEPA">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>TD HEPA</div>
+        <h2>Halaman semakan</h2>
+        <ul class="ticks">
+          <li>Semua butiran program, keperluan JOC, skop tugas dan pelajar.</li>
+          <li><b>Semakan automatik</b> — amaran jika jam seminggu melebihi had, bilangan nama tidak sepadan, dsb.</li>
+          <li>Permohonan dihantar semula: medan yang berubah ditanda <span style="background:#fef08a;color:#0f172a;padding:0 4px;border-radius:4px">kuning</span> berserta ulasan anda sebelum ini.</li>
+          <li><span class="ui">Lihat</span> untuk membuka lampiran bukti kelulusan.</li>
+        </ul>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/14-review-page.jpg" alt="Halaman semakan" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Buat keputusan" data-group="TD HEPA">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>TD HEPA</div>
+        <h2>Buat keputusan</h2>
+        <ol class="steps">
+          <li>Pilih <b>Lulus</b>, <b>Pindaan</b> atau <b>Tolak</b>.</li>
+          <li>Tulis ulasan kepada pemohon — <b>wajib</b> bagi Pindaan dan Tolak.</li>
+          <li>Klik butang pengesahan (cth. <span class="ui gold">Minta pindaan</span>).</li>
+        </ol>
+        <table class="t">
+          <tr><th>Keputusan</th><th>Apa berlaku</th></tr>
+          <tr><td><span class="chip s-ok">Lulus</span></td><td>Surat PDF dijana; emel + surat kepada pemohon dan CGEE.</td></tr>
+          <tr><td><span class="chip s-amend">Pindaan</span></td><td>Dikembalikan kepada pemohon bersama ulasan.</td></tr>
+          <tr><td><span class="chip s-rej">Tolak</span></td><td>Ditutup; pemohon dimaklumkan bersama sebab.</td></tr>
+        </table>
+        <div class="tip">Penyemak tidak boleh membuat keputusan ke atas permohonan sendiri.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/15-decision.jpg" alt="Buat keputusan" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Surat kelulusan" data-group="TD HEPA">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>TD HEPA</div>
+        <h2>Surat kelulusan</h2>
+        <ul class="ticks">
+          <li>Dijana automatik sebaik sahaja diluluskan, menggunakan letterhead FKTEN.</li>
+          <li>Nombor rujukan berturutan: <b>UniMAP/FKTEN/HEPA/JOC/2026/001</b>, 002, …</li>
+          <li>Tarikh surat = tarikh kelulusan. Ditandatangani secara komputer — tiada tandatangan diperlukan.</li>
+          <li><span class="ui">Jana semula surat</span> (Penyemak / Pentadbir) — jika maklumat atau templat dikemas kini. Nombor dan tarikh kekal sama; fail lama diarkibkan.</li>
+        </ul>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/16-review-approved.jpg" alt="Permohonan diluluskan" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Emel automatik" data-group="TD HEPA">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>TD HEPA</div>
+        <h2>Emel automatik</h2>
+        <table class="t">
+          <tr><th>Bila</th><th>Kepada</th><th>s.k.</th></tr>
+          <tr><td>Permohonan baharu</td><td>Semua Penyemak</td><td>—</td></tr>
+          <tr><td>Dihantar semula</td><td>Semua Penyemak</td><td>—</td></tr>
+          <tr><td>Pindaan</td><td>Pemohon</td><td>Semua Penyemak</td></tr>
+          <tr><td>Tolak</td><td>Pemohon</td><td>Semua Penyemak</td></tr>
+          <tr><td>Lulus (+ surat PDF)</td><td>Pemohon</td><td>Semua Penyemak</td></tr>
+          <tr><td>Lulus (+ surat PDF)</td><td>CGEE</td><td>—</td></tr>
+        </table>
+        <div class="tip">Setiap emel mempunyai butang <b>Buka permohonan</b> yang membawa terus ke halaman berkenaan.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/21-email.jpg" alt="Contoh emel kelulusan" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Laporan" data-group="TD HEPA">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>TD HEPA</div>
+        <h2>Laporan</h2>
+        <ul class="ticks">
+          <li>Jumlah permohonan, diluluskan, tempat JOC dan anggaran kos bagi tahun semasa.</li>
+          <li>Pecahan mengikut jabatan dan status.</li>
+          <li>Permohonan dihantar mengikut bulan.</li>
+          <li><span class="ui">Eksport CSV</span> untuk analisis lanjut dalam Excel / Google Sheets.</li>
+        </ul>
+        <div class="tip">Laporan juga boleh dilihat oleh Pemerhati (cth. Dekan) dan Pentadbir.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/17-reports.jpg" alt="Laporan" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <!-- ============================== PENTADBIR -->
+  <section class="slide section" data-title="Bahagian 4: Pentadbir" data-group="Pentadbir" data-anchor="pentadbir">
+    <div class="inner">
+      <div class="num">04</div>
+      <h2>Pentadbir Sistem</h2>
+      <p class="lead">Mengurus siapa boleh menggunakan sistem, peranan masing-masing dan tetapan emel.</p>
+      <div class="who"><span>Pengguna &amp; peranan</span><span>Tetapan</span><span>Log emel</span></div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Pengguna &amp; peranan" data-group="Pentadbir">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pentadbir</div>
+        <h2>Pengguna &amp; peranan</h2>
+        <ul class="ticks">
+          <li>Staf didaftarkan automatik sebagai Pemohon apabila log masuk kali pertama.</li>
+          <li>Tandakan kotak untuk memberi atau menarik balik peranan Penyemak, Pentadbir atau Pemerhati.</li>
+          <li><span class="ui">+ Tambah pengguna</span> — daftar staf lebih awal dan terus beri peranan.</li>
+          <li>Matikan <b>Aktif</b> untuk menyekat akses (rekod lama kekal).</li>
+        </ul>
+        <div class="tip">Semua perubahan peranan direkod dalam log audit.</div>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/18-admin-users.jpg" alt="Pengguna dan peranan" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Tetapan" data-group="Pentadbir">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pentadbir</div>
+        <h2>Tetapan</h2>
+        <table class="t">
+          <tr><th>Suis emel</th><th>Maksud</th></tr>
+          <tr><td><b>OFF</b></td><td>Emel hanya direkod dalam log, tidak dihantar.</td></tr>
+          <tr><td><b>TEST</b></td><td>Semua emel dihantar ke alamat penguji sahaja.</td></tr>
+          <tr><td><b>LIVE</b></td><td>Emel dihantar kepada penerima sebenar.</td></tr>
+        </table>
+        <ul class="ticks">
+          <li><b>Hantar kepada CGEE</b> (YA / TIDAK) — kawal sama ada CGEE menerima emel kelulusan.</li>
+          <li>Emel dan nama CGEE, awalan nombor rujukan, kadar RM sejam, nama penandatangan surat.</li>
+        </ul>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/19-admin-settings.jpg" alt="Tetapan" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Log emel" data-group="Pentadbir">
+    <div class="inner split">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Pentadbir</div>
+        <h2>Log emel</h2>
+        <ul class="ticks">
+          <li>Setiap emel yang dijana oleh sistem — tarikh, templat, penerima, subjek dan status.</li>
+          <li>Status: <b>LOGGED</b> (direkod sahaja), <b>SENT</b> (dihantar), <b>FAILED</b> (gagal, dengan sebab).</li>
+          <li>Berguna untuk menjawab soalan "saya tidak terima emel".</li>
+        </ul>
+      </div>
+      <figure class="frame"><div class="bar"><span></span><span></span><span></span></div><img src="assets/shots/20-admin-emails.jpg" alt="Log emel" loading="lazy"><span class="zoom">Klik untuk besarkan</span></figure>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Di telefon" data-group="Pentadbir">
+    <div class="inner split rev">
+      <div class="txt">
+        <div class="kicker"><span class="dot"></span>Semua pengguna</div>
+        <h2>Guna di telefon</h2>
+        <p class="lead">Sistem yang sama berfungsi di telefon dan tablet — tiada aplikasi perlu dipasang.</p>
+        <ul class="ticks">
+          <li>Buka pautan sistem dalam pelayar telefon (Chrome / Safari).</li>
+          <li>Menu di butang ☰ di penjuru kiri atas.</li>
+          <li>TD HEPA boleh menyemak dan membuat keputusan terus dari pautan dalam emel.</li>
+          <li>Tema cerah / gelap mengikut tetapan telefon, atau tukar dengan butang 🌙.</li>
+        </ul>
+      </div>
+      <div class="phone"><img src="assets/shots/22-phone.jpg" alt="Paparan telefon" loading="lazy"></div>
+    </div>
+  </section>
+
+  <!-- ============================== PENUTUP -->
+  <section class="slide" data-title="Soalan lazim" data-group="Penutup" data-anchor="faq">
+    <div class="inner">
+      <div class="kicker"><span class="dot"></span>Soalan lazim</div>
+      <h2>Soalan lazim</h2>
+      <div class="faq">
+        <div>
+          <details><summary>Saya tidak dapat log masuk.</summary><p>Gunakan akaun Google <b>@unimap.edu.my</b>. Jika pelayar anda log masuk ke beberapa akaun Google, pilih akaun UniMAP di skrin "Pilih akaun", atau buka sistem dalam tetingkap Inkognito.</p></details>
+          <details><summary>Boleh saya simpan dan sambung kemudian?</summary><p>Ya. Borang disimpan secara automatik sebagai draf. Buka <b>Permohonan saya</b> dan klik draf untuk menyambung.</p></details>
+          <details><summary>Boleh saya ubah permohonan selepas dihantar?</summary><p>Tidak, kecuali TD HEPA meminta pindaan. Jika ada kesilapan besar, hubungi TD HEPA supaya permohonan dikembalikan untuk pindaan.</p></details>
+          <details><summary>Saiz dan jenis fail lampiran?</summary><p>PDF, JPG atau PNG, maksimum 10 MB setiap fail. Anda boleh melampirkan lebih daripada satu fail.</p></details>
+        </div>
+        <div>
+          <details><summary>Saya tidak menerima emel.</summary><p>Semak folder Spam / Junk. Status permohonan sentiasa boleh dilihat dalam sistem — tekan butang ⟳ untuk kemas kini. Pentadbir boleh menyemak Log Emel.</p></details>
+          <details><summary>Kenapa perlu daftar lagi di portal JoC?</summary><p>Sistem ini ialah saringan peringkat fakulti. Tawaran latihan masih perlu didaftarkan di portal kebangsaan MySISWA@JoC (joc.mohe.gov.my) untuk tindakan CGEE. Gunakan fail CSV untuk memudahkan salinan.</p></details>
+          <details><summary>Siapa boleh melihat permohonan saya?</summary><p>Anda, Penyemak (TD HEPA), Pentadbir dan Pemerhati yang dilantik fakulti. Staf lain tidak boleh melihat permohonan anda.</p></details>
+          <details><summary>Program saya berulang setiap semester.</summary><p>Buka permohonan lama dan klik <b>Salin</b> — semua maklumat disalin ke draf baharu. Kemas kini tarikh dan lampiran, kemudian hantar.</p></details>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide" data-title="Cuba sendiri" data-group="Penutup" data-anchor="demo">
+    <div class="inner">
+      <div class="kicker"><span class="dot"></span>Cuba sendiri</div>
+      <h2>Cuba demo dengan data contoh</h2>
+      <p class="lead">Demo ini menggunakan skrin yang sama dengan sistem sebenar, tetapi semua data ialah <b>contoh</b> dan disimpan dalam pelayar anda sahaja — tiada emel dihantar dan sistem sebenar tidak terjejas.</p>
+      <div class="cards c4">
+        <div class="card"><div class="ico">👤</div><h3>Prof. Madya Ts. Dr. Mohamed Nasrun Osman</h3><p>Pemohon + Penyemak + Pentadbir. Cuba semak dan buat keputusan.</p></div>
+        <div class="card"><div class="ico">👩‍🏫</div><h3>Dr. Aina binti Rahman</h3><p>Pemohon. Cuba isi borang, lihat surat kelulusan dan fail CSV.</p></div>
+        <div class="card"><div class="ico">🆕</div><h3>Staf Baharu</h3><p>Pengalaman log masuk kali pertama dan lengkapkan profil.</p></div>
+        <div class="card"><div class="ico">🚫</div><h3>Akaun Gmail peribadi</h3><p>Lihat bagaimana akaun bukan UniMAP disekat.</p></div>
+      </div>
+      <div style="margin-top:26px;display:flex;gap:12px;flex-wrap:wrap">
+        <a class="tb gold" style="height:46px;padding:0 22px;font-size:.95rem" href="demo/index.html" target="_blank" rel="noopener">Buka demo ↗</a>
+        <a class="tb" style="height:46px;padding:0 22px;font-size:.95rem" href="demo/preview-email.html" target="_blank" rel="noopener">Lihat contoh emel ↗</a>
+      </div>
+      <div class="tip">Di dalam demo: klik <b>Log masuk dengan akaun UniMAP</b> dan pilih akaun di atas. Untuk mula semula, buka menu avatar › <b>Set semula data demo</b>.</div>
+    </div>
+  </section>
+
+  <section class="slide cover" data-title="Hubungi" data-group="Penutup">
+    <div class="inner">
+      <span class="logomark xl"><b>JOC</b><i></i><em>FKTEN</em></span>
+      <h1 style="font-size:clamp(2rem,4vw,3.2rem)">Terima kasih</h1>
+      <div class="cards c2" style="width:100%;max-width:900px">
+        <div class="card" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18);color:#fff"><h3>Saringan peringkat fakulti</h3><p style="color:#c9d3f2">Prof. Madya Ts. Dr. Mohamed Nasrun Osman<br>Timbalan Dekan (Hal Ehwal Pelajar dan Alumni), FKTEN<br><a style="color:var(--gold)" href="mailto:nasrun@unimap.edu.my">nasrun@unimap.edu.my</a></p></div>
+        <div class="card" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.18);color:#fff"><h3>Pertanyaan peringkat universiti</h3><p style="color:#c9d3f2">Pusat Kebolehpasaran Graduan &amp; Keusahawanan (CGEE) UniMAP<br><a style="color:var(--gold)" href="mailto:cgee@unimap.edu.my">cgee@unimap.edu.my</a></p></div>
+      </div>
+      <div class="btns"><button class="btn" data-go="first">↺ Kembali ke awal</button><button class="btn" data-ov>Kandungan</button></div>
+      <div class="hint">Sistem Permohonan JOC · Fakulti Kejuruteraan &amp; Teknologi Elektronik (FKTEN) · Universiti Malaysia Perlis</div>
+    </div>
+  </section>
+</main>
+
+<nav class="bottom">
+  <button class="navbtn" id="prev" aria-label="Slaid sebelum">← <span class="hide-sm">Sebelum</span></button>
+  <span class="count" id="count"></span>
+  <span class="title" id="stitle"></span>
+  <button class="navbtn next" id="next" aria-label="Slaid seterusnya"><span class="hide-sm">Seterusnya</span> →</button>
+</nav>
+
+<div class="overview" id="overview" role="dialog" aria-label="Kandungan">
+  <div class="ov-head"><h2 style="font-size:1.4rem">Kandungan</h2><button class="tb" id="ov-close">Tutup ✕</button></div>
+  <div id="ov-body"></div>
+</div>
+<div class="lightbox" id="lightbox"><span class="x">Klik atau tekan Esc untuk tutup</span><img alt=""></div>
+
+<script>
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var cur = 0;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function show(i, instant) {
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach(function (s, k) { s.classList.toggle('on', k === i); s.classList.toggle('prev', k < i); });
+    cur = i;
+    slides[i].scrollTop = 0;
+    $('count').textContent = (i + 1) + ' / ' + slides.length;
+    $('stitle').textContent = slides[i].dataset.group + ' · ' + slides[i].dataset.title.replace(/&amp;/g, '&');
+    $('progress').style.width = ((i + 1) / slides.length * 100) + '%';
+    $('prev').disabled = i === 0; $('next').disabled = i === slides.length - 1;
+    if (location.hash !== '#' + (i + 1)) history.replaceState(null, '', '#' + (i + 1));
+    document.title = slides[i].dataset.title.replace(/&amp;/g, '&') + ' · Manual Pengguna JOC FKTEN';
+  }
+  var go = function (d) { show(cur + d); };
+
+  $('prev').onclick = function () { go(-1); };
+  $('next').onclick = function () { go(1); };
+  document.querySelectorAll('[data-go]').forEach(function (b) {
+    b.onclick = function () { b.dataset.go === 'next' ? go(1) : show(0); };
+  });
+  document.querySelectorAll('[data-jump]').forEach(function (a) {
+    a.onclick = function (e) { e.preventDefault(); var t = slides.findIndex(function (s) { return s.dataset.anchor === a.dataset.jump; }); if (t >= 0) show(t); };
+  });
+
+  // overview grouped by part
+  function buildOverview() {
+    var groups = {}, order = [];
+    slides.forEach(function (s, i) { var g = s.dataset.group; if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(i); });
+    $('ov-body').innerHTML = order.map(function (g) {
+      return '<div class="ov-group"><h3>' + g + '</h3><div class="ov-grid">' + groups[g].map(function (i) {
+        return '<button class="ov-item' + (i === cur ? ' on' : '') + '" data-i="' + i + '"><b>' + (i + 1) + '</b>' + slides[i].dataset.title + '</button>';
+      }).join('') + '</div></div>';
+    }).join('');
+    $('ov-body').querySelectorAll('[data-i]').forEach(function (b) { b.onclick = function () { closeOv(); show(+b.dataset.i); }; });
+  }
+  function openOv() { buildOverview(); $('overview').classList.add('on'); }
+  function closeOv() { $('overview').classList.remove('on'); }
+  $('btn-ov').onclick = openOv; $('ov-close').onclick = closeOv;
+  document.querySelectorAll('[data-ov]').forEach(function (b) { b.onclick = openOv; });
+
+  // theme
+  $('btn-theme').onclick = function () {
+    var dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    var t = dark ? 'light' : 'dark';
+    document.documentElement.dataset.theme = t;
+    try { localStorage.setItem('jocman_theme', t); } catch (e) {}
+  };
+
+  // fullscreen
+  function fs() { if (document.fullscreenElement) document.exitFullscreen(); else if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); }
+  $('btn-fs').onclick = fs;
+
+  // lightbox
+  var lb = $('lightbox');
+  document.querySelectorAll('.frame, .phone').forEach(function (f) {
+    f.onclick = function () { lb.querySelector('img').src = f.querySelector('img').src; lb.querySelector('img').alt = f.querySelector('img').alt; lb.classList.add('on'); };
+  });
+  lb.onclick = function () { lb.classList.remove('on'); };
+
+  // interactive flow
+  var flow = $('flow'), detail = $('flow-detail');
+  function flowPick(c) { flow.querySelectorAll('.card').forEach(function (x) { x.classList.toggle('on', x === c); }); detail.textContent = c.dataset.d; }
+  flow.querySelectorAll('.card').forEach(function (c) { c.onclick = function () { flowPick(c); }; });
+  flowPick(flow.querySelector('.card'));
+
+  // keyboard
+  document.addEventListener('keydown', function (e) {
+    if (e.target.closest('input, textarea, select')) return;
+    if (lb.classList.contains('on') || $('overview').classList.contains('on')) { if (e.key === 'Escape') { lb.classList.remove('on'); closeOv(); } return; }
+    if (['ArrowRight', 'PageDown', ' '].indexOf(e.key) >= 0) { e.preventDefault(); go(1); }
+    else if (['ArrowLeft', 'PageUp'].indexOf(e.key) >= 0) { e.preventDefault(); go(-1); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+    else if (e.key === 'o' || e.key === 'O') openOv();
+    else if (e.key === 'f' || e.key === 'F') fs();
+  });
+
+  // swipe
+  var sx = null, sy = null;
+  $('deck').addEventListener('touchstart', function (e) { sx = e.touches[0].clientX; sy = e.touches[0].clientY; }, { passive: true });
+  $('deck').addEventListener('touchend', function (e) {
+    if (sx === null) return;
+    var dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? 1 : -1);
+    sx = null;
+  });
+
+  window.addEventListener('hashchange', function () { var n = parseInt(location.hash.slice(1), 10); if (n && n - 1 !== cur) show(n - 1); });
+  show((parseInt(location.hash.slice(1), 10) || 1) - 1);
+})();
+</script>
+</body>
+</html>
