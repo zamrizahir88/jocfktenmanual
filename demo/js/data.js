@@ -4,7 +4,7 @@
  * version can reuse the same shapes. Everything here is SAMPLE DATA.
  */
 (function () {
-  const STORE_KEY = 'joc_fkten_mock_v1';
+  const STORE_KEY = 'joc_fkten_mock_v3'; // v2: review claim, notice period, no student list
   const TODAY = '2026-10-28';
 
   const lookups = {
@@ -16,6 +16,7 @@
     ACTION: [
       ['CREATE', 'Draf dicipta'], ['SUBMIT', 'Dihantar'], ['REQUEST_AMEND', 'Pindaan diminta'], ['RESUBMIT', 'Dihantar semula'],
       ['APPROVE', 'Diluluskan'], ['REJECT', 'Ditolak'], ['WITHDRAW', 'Ditarik balik'], ['LETTER_ISSUED', 'Surat kelulusan dijana'],
+      ['CLAIM', 'Sedang disemak'], ['RELEASE', 'Semakan dilepaskan'], ['TAKEOVER', 'Semakan diambil alih'],
     ],
     OFFER_TYPE: [['PROJEK', 'Projek'], ['SAMBILAN', 'Sambilan'], ['ACARA', 'Acara']],
     PERIOD_TYPE: [['SEMESTER', 'Semester Akademik'], ['CUTI', 'Cuti Semester']],
@@ -36,6 +37,11 @@
     { role_code: 'ADMIN', role_name: 'Pentadbir Sistem', description: 'Urus pengguna, peranan, senarai dan tetapan.' },
     { role_code: 'VIEWER', role_name: 'Pemerhati', description: 'Lihat laporan sahaja.' },
   ];
+
+  // Sample of the shared FKTEN Staff Master: a new user listed here gets their profile filled in on first login.
+  const STAFF_MASTER = {
+    'staf.baharu@unimap.edu.my': { full_name: 'Ts. Dr. Nur Izzati binti Hashim', staff_no: '0812345', position: 'Pensyarah Kanan', department_id: 'DEP-JEG', phone: '012-3456789' },
+  };
 
   function ts(date, time) { return `${date}T${time || '09:00'}:00+08:00`; }
 
@@ -59,6 +65,7 @@
     const grant = (u, r) => user_roles.push({ user_role_id: `UR-${String(user_roles.length + 1).padStart(5, '0')}`, user_id: u, role_code: r, is_active: true });
     users.forEach(u => grant(u.user_id, 'APPLICANT'));
     grant('USR-00001', 'REVIEWER'); grant('USR-00001', 'ADMIN');
+    grant('USR-00004', 'REVIEWER'); // second Penyemak, to try "Saya semak" / "Ambil alih"
     grant('USR-00002', 'ADMIN');
     grant('USR-00006', 'VIEWER');
 
@@ -66,7 +73,7 @@
       ref_no: '', version_no: 0, rate_per_hour: 6, organiser: '', description: '',
       proof_approved_by_name: '', proof_approved_by_position: '', proof_approval_date: '',
       declaration_accepted: false, first_submitted_at: '', last_submitted_at: '', decided_at: '', decided_by: '',
-      duplicated_from_id: '', is_deleted: false, scopes: [], students: [], attachments: [],
+      duplicated_from_id: '', is_deleted: false, scopes: [], attachments: [], claimed_by: '', claimed_at: '',
     }, o);
 
     const applications = [
@@ -117,6 +124,7 @@
         num_students: 2, hours_per_student: 160, start_date: '2027-02-01', end_date: '2027-03-12', recruitment_mode: 'NAMED',
         proof_approved_by_name: 'Prof. Dr. Kamal bin Ahmad', proof_approved_by_position: 'Dekan FKTEN', proof_approval_date: '2026-10-01',
         declaration_accepted: true, first_submitted_at: ts('2026-10-08', '11:00'), last_submitted_at: ts('2026-10-26', '16:05'),
+        claimed_by: 'USR-00004', claimed_at: ts('2026-10-28', '00:30'),
         scopes: ['Memasang dan menguji nod sensor di lapangan', 'Mengumpul dan membersihkan data sensor', 'Menyediakan laporan data mingguan'],
         students: [['221013131', 'Lim Jia Hui', 'RY46 Kejuruteraan Elektronik'], ['221017272', 'Hakimi bin Salleh', 'RY46 Kejuruteraan Elektronik']],
         attachments: [{ type: 'KERTAS_KERJA', file_name: 'Kertas Kerja Projek IoT (Lulus).pdf', size: 990120 }, { type: 'SURAT_KELULUSAN', file_name: 'Surat Kelulusan Geran.pdf', size: 301233 }],
@@ -152,6 +160,18 @@
         start_date: '2026-11-16', end_date: '2027-01-29', recruitment_mode: 'OPEN_ADVERT', scopes: ['Mengendalikan sesi tutorial kumpulan kecil'],
       }),
     ];
+    // Urgent: starts 3 days after it was sent (less than the 7-day notice)
+    applications.push(base({
+      application_id: 'APP-000008', ref_no: 'JOC-FKTEN-2026-0007', applicant_id: 'USR-00005', department_id: 'DEP-PTD', status_code: 'SUBMITTED', version_no: 1,
+      programme_name: 'Krew Majlis Konvokesyen FKTEN 2026', organiser: 'Pejabat Dekan FKTEN',
+      description: 'Krew sokongan untuk raptai dan majlis konvokesyen peringkat fakulti.',
+      offer_type_code: 'ACARA', period_type_code: 'SEMESTER', job_title: 'Krew Acara', job_category_code: 'PERKHIDMATAN',
+      num_students: 6, hours_per_student: 12, start_date: '2026-10-30', end_date: '2026-10-31',
+      proof_approved_by_name: 'Prof. Dr. Kamal bin Ahmad', proof_approved_by_position: 'Dekan FKTEN', proof_approval_date: '2026-10-24',
+      declaration_accepted: true, first_submitted_at: ts('2026-10-27', '14:00'), last_submitted_at: ts('2026-10-27', '14:00'),
+      scopes: ['Membantu raptai majlis', 'Mengurus kaunter jubah dan cenderamata'],
+      attachments: [{ type: 'EMEL_KELULUSAN', file_name: 'Emel Kelulusan Dekan - Konvokesyen.pdf', size: 188000 }],
+    }));
     applications.forEach(a => { a.estimated_cost = a.num_students * a.hours_per_student * a.rate_per_hour; a.created_at = a.first_submitted_at || ts('2026-10-27'); a.updated_at = a.last_submitted_at || ts('2026-10-27'); });
 
     const reviews = [
@@ -180,6 +200,8 @@
       H('HIS-000012', 'APP-000006', 1, 'SUBMIT', 'DRAFT', 'SUBMITTED', 'USR-00005', 'APPLICANT', ts('2026-07-15', '10:00')),
       H('HIS-000013', 'APP-000006', 1, 'APPROVE', 'SUBMITTED', 'APPROVED', 'USR-00001', 'REVIEWER', ts('2026-07-16', '09:30')),
       H('HIS-000014', 'APP-000007', 0, 'CREATE', '', 'DRAFT', 'USR-00003', 'APPLICANT', ts('2026-10-27', '20:10')),
+      H('HIS-000015', 'APP-000008', 1, 'SUBMIT', 'DRAFT', 'SUBMITTED', 'USR-00005', 'APPLICANT', ts('2026-10-27', '14:00')),
+      H('HIS-000016', 'APP-000004', 2, 'CLAIM', 'RESUBMITTED', 'RESUBMITTED', 'USR-00004', 'REVIEWER', ts('2026-10-28', '00:30')),
     ];
 
     const approval_letters = [
@@ -201,6 +223,8 @@
       MAX_HOURS_WEEK_SEMESTER: '20',
       MAX_HOURS_WEEK_BREAK: '40',
       MIN_CGPA: '2.50',
+      MIN_NOTICE_DAYS: '7',
+      STAFF_MASTER_SHEET_ID: '1slpNhC2eXDFph8HwX65KLDqIlxTPINGcIqET-JiZc0U',
       MAX_UPLOAD_MB: '10',
       SIGNATORY_NAME: 'Prof. Madya Ts. Dr. Mohamed Nasrun Osman',
       SIGNATORY_TITLE: 'Timbalan Dekan (Hal Ehwal Pelajar dan Alumni)',
@@ -220,7 +244,7 @@
   mem = load();
 
   window.DB = {
-    TODAY, lookups, roles,
+    TODAY, lookups, roles, STAFF_MASTER,
     get data() { return mem; },
     save,
     reset() { mem = seed(); save(); },

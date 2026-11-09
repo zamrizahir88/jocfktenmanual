@@ -31,9 +31,9 @@
     return {
       programme_name: a.programme_name, organiser: a.organiser, description: a.description, offer_type_code: a.offer_type_code,
       period_type_code: a.period_type_code, job_title: a.job_title, job_category_code: a.job_category_code, num_students: a.num_students,
-      hours_per_student: a.hours_per_student, start_date: a.start_date, end_date: a.end_date, recruitment_mode: a.recruitment_mode,
+      hours_per_student: a.hours_per_student, start_date: a.start_date, end_date: a.end_date,
       proof_approved_by_name: a.proof_approved_by_name, proof_approval_date: a.proof_approval_date,
-      scopes: a.scopes.slice(), students: a.students.length, attachments: a.attachments.map(f => f.file_name),
+      scopes: a.scopes.slice(), attachments: a.attachments.map(f => f.file_name),
     };
   }
 
@@ -53,6 +53,17 @@
     return D().users.filter(u => ids.includes(u.user_id) && u.is_active).map(u => u.email).join(', ');
   }
 
+  // Same rules as claimActive_ in Api.js (claims lapse after 24 hours).
+  const CLAIM_HOURS = 24;
+  const claimActive = (a) => !!(a.claimed_by && a.claimed_at && new Date(nowISO()) - new Date(a.claimed_at) < CLAIM_HOURS * 3600000);
+  function pendingForReview(id) {
+    const a = getApp(id);
+    if (!a || (a.status_code !== 'SUBMITTED' && a.status_code !== 'RESUBMITTED')) throw new Error('NOT_PENDING');
+    if (a.applicant_id === sessionUser) throw new Error('OWN_APPLICATION');
+    return a;
+  }
+  const guard = (fn) => { try { return fn(); } catch (e) { return fail(e.message); } };
+
   function audit(entity, id, action, value) {
     D().audit_log.push({ audit_id: DB.nextId('AUD', D().audit_log, 'audit_id'), actor_id: sessionUser, entity_name: entity, entity_id: id, action, new_value_json: JSON.stringify(value || {}), created_at: nowISO() });
   }
@@ -66,15 +77,18 @@
     login(email, name) {
       if (!email.endsWith('@unimap.edu.my')) return fail('NOT_UNIMAP');
       let user = D().users.find(u => u.email === email);
+      let firstLogin = false;
       if (!user) {
-        user = { user_id: DB.nextId('USR', D().users, 'user_id', 5), email, full_name: name.replace(/\s*\(.*\)$/, ''), position: '', department_id: '', phone: '', staff_no: '', is_active: true };
+        // like Auth.current(): new users get their profile from the FKTEN Staff Master when listed
+        user = Object.assign({ user_id: DB.nextId('USR', D().users, 'user_id', 5), email, full_name: name.replace(/\s*\(.*\)$/, ''), position: '', department_id: '', phone: '', staff_no: '', is_active: true }, DB.STAFF_MASTER[email] || {});
+        firstLogin = true;
         D().users.push(user);
         D().user_roles.push({ user_role_id: DB.nextId('UR', D().user_roles, 'user_role_id', 5), user_id: user.user_id, role_code: 'APPLICANT', is_active: true });
         DB.save();
       }
       sessionUser = user.user_id;
       try { localStorage.setItem(SESSION_KEY, JSON.stringify({ user_id: sessionUser })); } catch (e) {}
-      return ok({ state: D(), userId: sessionUser });
+      return ok({ state: D(), userId: sessionUser, firstLogin });
     },
 
     refresh() { return ok(D()); },
@@ -89,12 +103,12 @@
         application_id: DB.nextId('APP', D().applications, 'application_id'), ref_no: '', applicant_id: user.user_id, department_id: user.department_id || '',
         status_code: 'DRAFT', version_no: 0, programme_name: '', organiser: '', description: '', offer_type_code: '', period_type_code: '',
         job_title: '', job_category_code: '', num_students: '', hours_per_student: '', rate_per_hour: Number(S('DEFAULT_RATE_PER_HOUR')), estimated_cost: 0,
-        start_date: '', end_date: '', recruitment_mode: 'NAMED', proof_approved_by_name: '', proof_approved_by_position: '', proof_approval_date: '',
+        start_date: '', end_date: '', recruitment_mode: '', proof_approved_by_name: '', proof_approved_by_position: '', proof_approval_date: '',
         declaration_accepted: false, first_submitted_at: '', last_submitted_at: '', decided_at: '', decided_by: '', duplicated_from_id: fromId || '',
-        is_deleted: false, scopes: [], students: [], attachments: [], created_at: nowISO(), updated_at: nowISO(),
+        is_deleted: false, scopes: [], attachments: [], claimed_by: '', claimed_at: '', created_at: nowISO(), updated_at: nowISO(),
       };
       if (src) {
-        ['programme_name', 'organiser', 'description', 'offer_type_code', 'period_type_code', 'job_title', 'job_category_code', 'num_students', 'hours_per_student', 'recruitment_mode']
+        ['programme_name', 'organiser', 'description', 'offer_type_code', 'period_type_code', 'job_title', 'job_category_code', 'num_students', 'hours_per_student']
           .forEach(k => { a[k] = src[k]; });
         a.programme_name = src.programme_name + ' (Salinan)';
         a.scopes = src.scopes.slice();
@@ -113,7 +127,7 @@
     submit(id) {
       const a = getApp(id);
       const from = a.status_code;
-      a.version_no += 1; a.last_submitted_at = nowISO(); a.declaration_at = nowISO();
+      a.version_no += 1; a.last_submitted_at = nowISO(); a.declaration_at = nowISO(); a.claimed_by = ''; a.claimed_at = '';
       if (from === 'DRAFT') {
         const y = DB.TODAY.slice(0, 4);
         const n = D().applications.filter(x => x.ref_no && x.ref_no.includes(`-${y}-`)).length + 1;
@@ -133,7 +147,9 @@
 
     decide(id, decision, comments) {
       const a = getApp(id);
+      if (claimActive(a) && a.claimed_by !== sessionUser) return fail('CLAIMED_BY_OTHER');
       const from = a.status_code;
+      a.claimed_by = ''; a.claimed_at = '';
       const rev = { review_id: DB.nextId('REV', D().reviews, 'review_id'), application_id: id, version_no: a.version_no, reviewer_id: sessionUser, decision_code: decision, comments, decided_at: nowISO() };
       D().reviews.push(rev);
       const applicant = D().users.find(u => u.user_id === a.applicant_id);
@@ -158,6 +174,36 @@
       a.updated_at = nowISO();
       DB.save();
       return ok(D());
+    },
+
+    claim(id) {
+      return guard(() => {
+        const a = pendingForReview(id);
+        if (a.claimed_by === sessionUser && claimActive(a)) return ok(D());
+        if (claimActive(a)) throw new Error('CLAIMED_BY_OTHER');
+        a.claimed_by = sessionUser; a.claimed_at = nowISO();
+        addHistory(a, 'CLAIM', a.status_code, a.status_code, 'REVIEWER');
+        DB.save(); return ok(D());
+      });
+    },
+    release(id) {
+      return guard(() => {
+        const a = pendingForReview(id);
+        if (a.claimed_by !== sessionUser) throw new Error('NOT_CLAIMED');
+        a.claimed_by = ''; a.claimed_at = '';
+        addHistory(a, 'RELEASE', a.status_code, a.status_code, 'REVIEWER');
+        DB.save(); return ok(D());
+      });
+    },
+    takeover(id) {
+      return guard(() => {
+        const a = pendingForReview(id);
+        if (a.claimed_by === sessionUser && claimActive(a)) return ok(D());
+        const prev = claimActive(a) ? D().users.find(u => u.user_id === a.claimed_by) : null;
+        a.claimed_by = sessionUser; a.claimed_at = nowISO();
+        addHistory(a, prev ? 'TAKEOVER' : 'CLAIM', a.status_code, a.status_code, 'REVIEWER', { remarks: prev ? 'Diambil alih daripada ' + prev.full_name : '' });
+        DB.save(); return ok(D());
+      });
     },
 
     // The UI adds the returned attachment to its copy of the application (same object here).

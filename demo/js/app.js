@@ -12,7 +12,9 @@
   const IS_MOCK = API.mode === 'mock';
   const LOGO = window.LOGO_SRC || 'assets/unimap_logo.png';
   const FACULTY = 'Fakulti Kejuruteraan & Teknologi Elektronik (FKTEN)';
-  const HIDE_INFO_KEY = 'joc_hide_info';
+  const CLAIM_HOURS = 24; // same as Api.js: a "Saya semak" claim lapses after this
+  const SLA_DAYS = 3;     // working days TD HEPA aims to review within
+  try { localStorage.removeItem('joc_hide_info'); } catch (e) {} // old "don't show again" choice: the page now always shows
   // Built by concatenation: Apps Script drops everything after a double slash inside template strings.
   const JOC_PORTAL = 'https:' + '/' + '/joc.mohe.gov.my';
   const TODAY = () => STATE.today;
@@ -33,6 +35,16 @@
   const TITLES = /^(prof\.?|madya|ts\.?|dr\.?|ir\.?|puan|encik|cik|datuk|dato'?|unit|bin|binti|a\/l|a\/p)$/i;
   const initials = (name) => name.split(/\s+/).filter(w => w && !TITLES.test(w)).slice(0, 2).map(w => w[0]).join('').toUpperCase();
   const S = (k) => D().settings[k];
+  const minNotice = () => Number(S('MIN_NOTICE_DAYS')) || 7;
+  /** Monday-Friday days after `from` up to and including today (public holidays not counted). */
+  function workingDaysSince(from) {
+    let n = 0;
+    const d = new Date(from.slice(0, 10) + 'T00:00:00'), end = new Date(TODAY() + 'T00:00:00');
+    for (d.setDate(d.getDate() + 1); d <= end; d.setDate(d.getDate() + 1)) if (d.getDay() % 6 !== 0) n++;
+    return n;
+  }
+  // The mock runs on a fixed sample date (DB.TODAY) with the real time of day, like its nowISO().
+  const nowMs = () => { if (!IS_MOCK) return Date.now(); const t = new Date(); const p = (x) => String(x).padStart(2, '0'); return new Date(`${TODAY()}T${p(t.getHours())}:${p(t.getMinutes())}:00+08:00`).getTime(); };
 
   const ICONS = {
     home: '<path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z"/>',
@@ -82,7 +94,7 @@
     if (!bar) { bar = document.createElement('div'); bar.id = 'busy'; document.body.appendChild(bar); }
     bar.classList.toggle('on', busyCount > 0);
   }
-  const ERRORS = { FORBIDDEN: 'Anda tiada kebenaran untuk tindakan ini.', NOT_EDITABLE: 'Permohonan ini tidak boleh disunting lagi.', NOT_PENDING: 'Permohonan ini sudah diputuskan.', OWN_APPLICATION: 'Anda tidak boleh membuat keputusan ke atas permohonan sendiri.', INCOMPLETE: 'Permohonan belum lengkap.', LETTER_NOT_READY: 'Surat PDF belum tersedia.', LETTER_TEMPLATE_MISSING: 'Templat surat belum disediakan (setupLetterTemplate).' };
+  const ERRORS = { FORBIDDEN: 'Anda tiada kebenaran untuk tindakan ini.', NOT_EDITABLE: 'Permohonan ini tidak boleh disunting lagi.', NOT_PENDING: 'Permohonan ini sudah diputuskan.', OWN_APPLICATION: 'Anda tidak boleh membuat keputusan ke atas permohonan sendiri.', INCOMPLETE: 'Permohonan belum lengkap.', LETTER_NOT_READY: 'Surat PDF belum tersedia.', LETTER_TEMPLATE_MISSING: 'Templat surat belum disediakan (setupLetterTemplate).', BAD_SETTING: 'Nilai tetapan tidak sah. Semak julat yang dibenarkan.', CLAIMED_BY_OTHER: 'Permohonan ini sedang disemak oleh Penyemak lain. Muat semula untuk melihat status terkini.', NOT_CLAIMED: 'Anda tidak sedang menyemak permohonan ini.' };
   /** Run a backend call with the busy bar; shows the error and resolves to null on failure. */
   async function call(promise) {
     busy(true);
@@ -198,6 +210,41 @@
   const letterOf = (id) => D().approval_letters.find(l => l.application_id === id && !l.is_void);
   const pending = (a) => a.status_code === 'SUBMITTED' || a.status_code === 'RESUBMITTED';
   const editable = (a) => a.status_code === 'DRAFT' || a.status_code === 'AMEND_REQUIRED';
+  /** Someone clicked "Saya semak" less than CLAIM_HOURS ago. */
+  const claimActive = (a) => pending(a) && !!a.claimed_by && !!a.claimed_at && nowMs() - new Date(a.claimed_at).getTime() < CLAIM_HOURS * 3600000;
+  /** Who made the latest decision (shown as "Disemak oleh"). */
+  const reviewedBy = (a) => { const r = reviewsOf(a.application_id).pop(); return r ? userName(r.reviewer_id) : ''; };
+  /** Calendar days between first submission (or today for drafts) and the start date. */
+  const noticeGiven = (a) => a.start_date ? daysBetween(a.first_submitted_at || TODAY(), a.start_date) : null;
+  const isUrgent = (a) => { const n = noticeGiven(a); return n !== null && n < minNotice(); };
+  /** Latest TD HEPA comment for Ditolak / Perlu pindaan, shown under the item in lists. */
+  function decisionNote(a) {
+    if (a.status_code !== 'REJECTED' && a.status_code !== 'AMEND_REQUIRED') return '';
+    const r = reviewsOf(a.application_id).filter(x => x.decision_code === (a.status_code === 'REJECTED' ? 'REJECT' : 'AMEND')).pop();
+    return r && r.comments ? `<span class="reason ${a.status_code === 'REJECTED' ? 'rej' : 'amend'}" title="${esc(r.comments)}"><span class="reason-t">${a.status_code === 'REJECTED' ? 'Sebab ditolak' : 'Pindaan diminta'}: ${esc(r.comments)}</span></span>` : '';
+  }
+  /** Reviewer-list chips: who is reviewing, overdue, urgent. */
+  function reviewChips(a) {
+    const out = [];
+    if (pending(a)) {
+      const wd = workingDaysSince(a.last_submitted_at);
+      out.push(`<span>${wd} hari bekerja menunggu</span>`);
+      if (wd > SLA_DAYS) out.push('<span class="chip chip-late">LEWAT</span>');
+      if (isUrgent(a)) out.push('<span class="chip chip-urgent">SEGERA</span>');
+      out.push(claimActive(a) ? `<span class="chip chip-claim">${ic('eye')} Sedang disemak: ${esc(userName(a.claimed_by))}</span>` : '<span class="chip chip-free">Belum diambil</span>');
+    } else if (a.status_code !== 'DRAFT' && reviewedBy(a)) out.push(`<span>Disemak oleh ${esc(reviewedBy(a))}</span>`);
+    return out.join('') + decisionNote(a);
+  }
+  /** The reminder about applying early (setting MIN_NOTICE_DAYS) and the 3-working-day review. */
+  const noticeText = () => `Mohon dalam sistem ini <b>sekurang-kurangnya ${minNotice()} hari</b> sebelum tarikh mula / sebelum mengisi di portal JoC. Permohonan akan disemak dalam <b>${SLA_DAYS} hari bekerja</b>. Tiada jaminan permohonan akan diluluskan jika dihantar kurang daripada tempoh ini — rancang permohonan anda lebih awal.`;
+  /** Warning shown on the form when the start date is too close (does not block submitting). */
+  function noticeWarning(a) {
+    if (!a.start_date) return '';
+    const n = daysBetween(TODAY(), a.start_date);
+    if (n >= minNotice()) return '';
+    const when = n < 0 ? 'Tarikh mula telah berlalu.' : n === 0 ? 'Tarikh mula ialah hari ini.' : `Tarikh mula hanya <b>${n} hari</b> dari hari ini (kurang daripada ${minNotice()} hari).`;
+    return `<div class="callout warn" style="margin-bottom:14px">${ic('clock')}<div class="body"><b>Permohonan segera.</b> ${when} Permohonan disemak dalam ${SLA_DAYS} hari bekerja dan <b>tiada jaminan</b> ia diluluskan sebelum tarikh mula. Anda masih boleh menghantar permohonan ini.</div></div>`;
+  }
 
   function weeklyCheck(a) {
     if (!a.start_date || !a.end_date || !a.hours_per_student) return null;
@@ -312,10 +359,11 @@
     });
   }
 
-  /** Stat card: coloured icon tile + top line (cls = c-draft | c-sub | c-amend | c-ok | c-rej | c-gold). */
-  function kpi(label, value, sub, cls, icon, money) {
-    return `<div class="card kpi ${cls}"><div class="k-ic">${ic(icon)}</div><div class="k-label">${esc(label)}</div>
-      <div class="k-val ${money ? 'money' : ''}" ${money ? '' : `data-n="${Number(value) || 0}"`}>${money ? esc(value) : fmtNum(value)}</div><div class="k-sub">${esc(sub)}</div></div>`;
+  /** Stat card: coloured icon tile + top line (cls = c-draft | c-sub | c-amend | c-ok | c-rej | c-gold). With href the card opens that list. */
+  function kpi(label, value, sub, cls, icon, money, href) {
+    const tag = href ? `a href="${href}"` : 'div';
+    return `<${tag} class="card kpi ${cls} ${href ? 'kpi-link' : ''}"><div class="k-ic">${ic(icon)}</div><div class="k-label">${esc(label)}${href ? ` <span class="k-go">${ic('right')}</span>` : ''}</div>
+      <div class="k-val ${money ? 'money' : ''}" ${money ? '' : `data-n="${Number(value) || 0}"`}>${money ? esc(value) : fmtNum(value)}</div><div class="k-sub">${esc(sub)}</div></${href ? 'a' : 'div'}>`;
   }
 
   const HARI = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
@@ -398,7 +446,7 @@
           <div class="steps-card">
             <h3>Bagaimana ia berfungsi</h3>
             ${[['Mohon di sistem ini', 'Isi butiran program JOC dan lampirkan bukti kelulusan (kertas kerja / emel).'],
-               ['Semakan TD HEPA', 'Keputusan: Lulus, Pindaan atau Tolak. Anda dimaklumkan melalui emel.'],
+               ['Semakan TD HEPA', 'Disemak dalam 3 hari bekerja. Keputusan: Lulus, Pindaan atau Tolak — anda dimaklumkan melalui emel.'],
                ['Surat kelulusan', 'Jika lulus, surat kelulusan fakulti dihantar kepada anda dan CGEE.'],
                ['Daftar di portal JoC', 'Daftar tawaran latihan di joc.mohe.gov.my menggunakan maklumat yang telah diluluskan.']]
               .map(([t, d], i) => `<div class="step-line"><div class="step-num">${i + 1}</div><div><b>${t}</b><p class="small muted">${d}</p></div></div>`).join('')}
@@ -431,7 +479,7 @@
     const res = await call(API.login(email, name));
     if (!res) return;
     closeModal();
-    enter(res.state, res.userId);
+    enter(res.state, res.userId, '', res.firstLogin);
   }
 
   /**
@@ -453,14 +501,14 @@
   }
 
   /** After the backend has identified the user: pick the role and the first screen. */
-  function enter(state, userId, openId) {
+  function enter(state, userId, openId, firstLogin) {
     STATE = state;
     const rs = rolesOf(userId);
     let saved = null;
     try { saved = localStorage.getItem('joc_role_' + userId); } catch (e) {}
     session = { user_id: userId, role: rs.includes(saved) ? saved : rs[0] };
     const user = me();
-    if (!user.department_id) { toast('Selamat datang! Sila lengkapkan profil anda.'); return go('#/profile?first=1'); }
+    if (!user.department_id || firstLogin) { toast('Selamat datang! Sila semak profil anda.'); return go('#/profile?first=1'); }
     if (openId && openFromLink(openId, rs)) return;
     if (rs.length > 1 && !rs.includes(saved)) return go('#/roles');
     if (location.hash && location.hash !== '#/' && location.hash !== '#') return render();
@@ -510,10 +558,10 @@
         `<a class="btn btn-gold" href="#/apply">${ic('plus')} Permohonan Baharu</a>`)}
       ${amend.map(a => `<div class="callout warn" style="margin-bottom:14px">${ic('alert')}<div class="body"><b>Pindaan diperlukan:</b> ${esc(a.programme_name)} (${esc(a.ref_no)}). <a href="#/app/${a.application_id}">Lihat ulasan TD HEPA →</a></div></div>`).join('')}
       <div class="kpis">
-        ${kpi('Draf', cnt(a => a.status_code === 'DRAFT'), 'belum dihantar', 'c-draft', 'file')}
-        ${kpi('Dalam semakan', nPend, 'menunggu penyemak', 'c-sub', 'clock')}
-        ${kpi('Perlu pindaan', nAmend, 'tindakan anda', 'c-amend', 'edit')}
-        ${kpi('Lulus', nOk, 'sedia untuk portal JoC', 'c-ok', 'check')}
+        ${kpi('Draf', cnt(a => a.status_code === 'DRAFT'), 'belum dihantar', 'c-draft', 'file', false, '#/my?s=DRAFT')}
+        ${kpi('Dalam semakan', nPend, 'menunggu penyemak', 'c-sub', 'clock', false, '#/my?s=pending')}
+        ${kpi('Perlu pindaan', nAmend, 'tindakan anda', 'c-amend', 'edit', false, '#/my?s=AMEND_REQUIRED')}
+        ${kpi('Lulus', nOk, 'sedia untuk portal JoC', 'c-ok', 'check', false, '#/my?s=APPROVED')}
       </div>
       <div class="card"><div class="card-head"><h2>Permohonan saya</h2><a class="btn btn-sm" href="#/my">Lihat semua</a></div>
         <div class="app-list">${mine.slice(0, 5).map(a => appItem(a, `#/app/${a.application_id}`)).join('') || emptyState('Belum ada permohonan.', '<a class="btn btn-primary" href="#/apply">Mula permohonan pertama</a>')}</div></div>`);
@@ -521,10 +569,14 @@
 
   const emptyState = (msg, action) => `<div class="empty">${ic('inbox')}<p>${msg}</p>${action ? `<div style="margin-top:12px">${action}</div>` : ''}</div>`;
 
-  route('/my', () => {
-    const mine = D().applications.filter(a => a.applicant_id === session.user_id && !a.is_deleted).sort((a, b) => b.updated_at.localeCompare(a.updated_at));
-    shell('Permohonan Saya', `<div class="page-head"><div><h1>Permohonan Saya</h1><p class="muted">${mine.length} permohonan</p></div><a class="btn btn-primary" href="#/apply">${ic('plus')} Permohonan Baharu</a></div>
-      <div class="card"><div class="app-list">${mine.map(a => appItem(a, `#/app/${a.application_id}`)).join('') || emptyState('Belum ada permohonan.')}</div></div>`);
+  route('/my', (params) => {
+    const tabs = [['', 'Semua', () => true], ['DRAFT', 'Draf', a => a.status_code === 'DRAFT'], ['pending', 'Dalam semakan', pending], ['AMEND_REQUIRED', 'Perlu pindaan', a => a.status_code === 'AMEND_REQUIRED'], ['APPROVED', 'Lulus', a => a.status_code === 'APPROVED'], ['REJECTED', 'Ditolak', a => a.status_code === 'REJECTED']];
+    const tf = tabs.find(t => t[0] === (params.get('s') || '')) || tabs[0];
+    const mine = D().applications.filter(a => a.applicant_id === session.user_id && !a.is_deleted).filter(tf[2]).sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+    shell('Permohonan Saya', `<div class="page-head"><div><h1>Permohonan Saya</h1><p class="muted">${mine.length} permohonan${tf[0] ? ' · ' + esc(tf[1]) : ''}</p></div><a class="btn btn-primary" href="#/apply">${ic('plus')} Permohonan Baharu</a></div>
+      <div class="row" style="margin-bottom:14px"><div class="tabs">${tabs.map(t => `<button class="${t === tf ? 'on' : ''}" data-s="${t[0]}">${t[1]}</button>`).join('')}</div></div>
+      <div class="card"><div class="app-list">${mine.map(a => appItem(a, `#/app/${a.application_id}`, decisionNote(a))).join('') || emptyState(tf[0] ? 'Tiada permohonan dalam senarai ini.' : 'Belum ada permohonan.')}</div></div>`);
+    $$('[data-s]').forEach(b => b.onclick = () => go('#/my' + (b.dataset.s ? '?s=' + b.dataset.s : '')));
   }, { roles: ['APPLICANT'] });
 
   // -------------------------------------------------------- JOC info
@@ -554,36 +606,31 @@
           .map(([t, d], i) => `<div class="step-line" style="border-top:0"><div class="step-num">${i + 1}</div><div><b>${t}</b><p class="small muted">${d}</p></div></div>`).join('')}</div>
       </div>
       ${forApply ? `<div class="card card-pad"><h3>Sediakan sebelum mula</h3><ul class="checklist" style="margin-top:12px">
-          ${['Kertas kerja / emel / surat kelulusan program (PDF atau gambar)', 'Tarikh mula & tamat, jumlah jam bagi setiap pelajar', 'Skop tugas pelajar', 'Senarai pelajar (no. matrik, nama, program) — jika telah dikenal pasti']
-            .map(x => `<li>${ic('check')}<span>${x}</span></li>`).join('')}</ul></div>` : ''}
-      <p class="small muted">Sumber: Siaran Media KPT Belanjawan 2026 · Berita UKM (29 Jun 2026) · Jendela MADANI (16 Mei 2026). <a href="${esc(S('GOOGLE_SITE_URL'))}" target="_blank" rel="noopener">Baca lanjut di laman JOC FKTEN ${ic('ext')}</a></p>`;
+          ${['Kertas kerja / emel / surat kelulusan program (PDF atau gambar)', 'Tarikh mula & tamat, bilangan pelajar dan jumlah jam bagi setiap pelajar', 'Skop tugas pelajar']
+            .map(x => `<li>${ic('check')}<span>${x}</span></li>`).join('')}</ul>
+          <p class="small muted" style="margin-top:10px">Butiran pelajar (nama, no. matrik) <b>tidak</b> diperlukan di sini — ia diisi terus di portal JoC selepas permohonan diluluskan.</p></div>` : ''}
+      <div class="row between" style="gap:10px"><p class="small muted" style="margin:0">Sumber: Siaran Media KPT Belanjawan 2026 · Berita UKM (29 Jun 2026) · Jendela MADANI (16 Mei 2026).</p><a class="btn btn-sm" href="${esc(S('GOOGLE_SITE_URL'))}" target="_blank" rel="noopener">Baca lanjut di laman JOC FKTEN ${ic('ext')}</a></div>`;
   }
 
   route('/about', () => {
     shell('Tentang JOC', `<div class="stack">${infoContent(false)}</div>`);
   });
 
-  route('/apply', (params) => {
-    let hide = false;
-    try { hide = localStorage.getItem(HIDE_INFO_KEY) === '1'; } catch (e) {}
+  route('/apply', () => {
     const mine = D().applications.filter(a => a.applicant_id === session.user_id && a.version_no > 0);
-    if (hide && !params.get('info')) return startNew();
     shell('Permohonan Baharu', `
       <div class="page-head"><div><h1>Sebelum anda mula</h1><p class="muted">Ringkasan syarat MySISWA JoC dan perkara yang perlu disediakan.</p></div></div>
+      <div class="callout warn" style="margin-bottom:16px">${ic('clock')}<div class="body"><b>Tempoh permohonan.</b> ${noticeText()}</div></div>
       <div class="stack">${infoContent(true)}
         <div class="card card-pad stack">
-          <label class="check"><input type="checkbox" id="ack"> <span>Saya telah membaca dan faham syarat JOC di atas.</span></label>
-          <label class="check"><input type="checkbox" id="hide"> <span class="muted">Jangan tunjuk halaman ini lagi untuk permohonan seterusnya.</span></label>
+          <label class="check"><input type="checkbox" id="ack"> <span>Saya telah membaca dan faham syarat JOC dan tempoh permohonan di atas.</span></label>
           <div class="row between">
             ${mine.length ? `<select id="dupe" style="max-width:420px"><option value="">— atau salin daripada permohonan terdahulu —</option>${mine.map(a => `<option value="${a.application_id}">${esc(a.ref_no)} · ${esc(a.programme_name)}</option>`).join('')}</select>` : '<span></span>'}
             <button class="btn btn-primary" id="start" disabled>Mula permohonan ${ic('right')}</button>
           </div>
         </div></div>`);
     $('#ack').onchange = (e) => { $('#start').disabled = !e.target.checked; };
-    $('#start').onclick = (e) => {
-      try { if ($('#hide').checked) localStorage.setItem(HIDE_INFO_KEY, '1'); } catch (err) {}
-      act(e.currentTarget, () => startNew($('#dupe') ? $('#dupe').value : ''));
-    };
+    $('#start').onclick = (e) => act(e.currentTarget, () => startNew($('#dupe') ? $('#dupe').value : ''), 'Menyediakan borang permohonan…');
   }, { roles: ['APPLICANT'] });
 
   async function startNew(fromId) {
@@ -616,7 +663,9 @@
   window.addEventListener('beforeunload', (e) => { if (savePending) { flushSave(); e.preventDefault(); e.returnValue = ''; } });
 
   // ---------------------------------------------------------------- wizard
-  const STEPS = ['Program', 'Keperluan JOC', 'Pelajar', 'Bukti Kelulusan', 'Semak & Hantar'];
+  // Student details are no longer collected here: applicants key them in at the JoC portal after approval.
+  const STEPS = ['Program', 'Keperluan JOC', 'Bukti Kelulusan', 'Semak & Hantar'];
+  const LAST = STEPS.length;
 
   function validateStep(a, step) {
     const e = {};
@@ -629,15 +678,11 @@
       if (a.start_date && a.end_date && a.end_date < a.start_date) e.end_date = 'Tarikh tamat sebelum tarikh mula';
       if (!a.scopes.length) e.scopes = 'Tambah sekurang-kurangnya satu skop tugas';
     }
-    if (step === 3 && a.recruitment_mode === 'NAMED') {
-      if (!a.students.length) e.students = 'Tambah sekurang-kurangnya seorang pelajar, atau pilih "Melalui iklan terbuka JOC"';
-      else if (a.students.some(s => !s[0] || !s[1])) e.students = 'No. matrik dan nama wajib diisi bagi setiap pelajar';
-    }
-    if (step === 4) {
+    if (step === 3) {
       if (!a.attachments.filter(f => !f.uploading).length) e.attachments = 'Lampirkan sekurang-kurangnya satu bukti kelulusan';
       need('proof_approved_by_name'); need('proof_approval_date');
     }
-    if (step === 5 && !a.declaration_accepted) e.declaration_accepted = 'Sila sahkan perakuan';
+    if (step === 4 && !a.declaration_accepted) e.declaration_accepted = 'Sila sahkan perakuan';
     return e;
   }
 
@@ -648,13 +693,14 @@
   route('/form/:id', (id, params) => {
     const a = getApp(id);
     if (!a || a.applicant_id !== session.user_id || !editable(a)) { toast('Permohonan ini tidak boleh disunting', 'err'); return go('#/my'); }
-    const step = Math.min(5, Math.max(1, parseInt(params.get('step') || '1', 10)));
+    const step = Math.min(LAST, Math.max(1, parseInt(params.get('step') || '1', 10)));
     renderStep(a, step, {});
   }, { roles: ['APPLICANT'] });
 
   function renderStep(a, step, errs) {
     const lastReview = reviewsOf(a.application_id).filter(r => r.decision_code === 'AMEND').pop();
-    const stepper = `<div class="stepper">${STEPS.map((s, i) => `<div class="s ${i + 1 < step ? 'done' : ''} ${i + 1 === step ? 'on' : ''}"><div class="bar"></div><div class="name">${i + 1}. <span class="hide-sm">${s}</span></div></div>`).join('')}</div>`;
+    const stepper = `<div class="stepper">${STEPS.map((s, i) => `<div class="s ${i + 1 < step ? 'done' : ''} ${i + 1 === step ? 'on' : ''}"><div class="bar"></div><div class="name">${i + 1}. <span class="hide-sm">${s}</span></div></div>`).join('')}</div>
+      <div class="step-now">Langkah ${step} daripada ${LAST}: <b>${STEPS[step - 1]}</b></div>`;
     let body = '';
     if (step === 1) {
       body = `<h2 style="margin-bottom:16px">Maklumat program</h2>
@@ -682,6 +728,7 @@
           ${fieldHTML('Tarikh mula', 'start_date', inp(a, 'start_date', 'date'), errs)}
           ${fieldHTML('Tarikh tamat', 'end_date', inp(a, 'end_date', 'date'), errs)}
         </div>
+        <div id="notice">${noticeWarning(a) || `<p class="small muted" style="margin:-6px 0 14px">${ic('clock')} ${noticeText()}</p>`}</div>
         <div id="live">${liveCalc(a, wc)}</div>
         <div class="field ${errs.scopes ? 'error' : ''}"><span style="display:block;font-weight:600;font-size:.88rem;margin-bottom:6px">Skop tugas <span class="req">*</span></span>
           <ul class="scope-list">${a.scopes.map((s, i) => `<li data-li="${i}"><span class="n">${i + 1}.</span><span class="d">${esc(s)}</span>
@@ -690,13 +737,6 @@
           ${errs.scopes ? `<div class="err">${esc(errs.scopes)}</div>` : ''}</div>`;
     }
     if (step === 3) {
-      body = `<h2 style="margin-bottom:16px">Pelajar</h2>
-        <div class="stack" style="gap:10px;margin-bottom:16px">
-          ${LK('RECRUIT_MODE').map(([c, l]) => `<label class="check card card-pad" style="padding:14px"><input type="radio" name="recruitment_mode" value="${c}" ${a.recruitment_mode === c ? 'checked' : ''}><span><b>${esc(l)}</b><div class="small muted">${c === 'NAMED' ? 'Senaraikan pelajar yang akan menyertai program.' : 'Pelajar akan memohon sendiri melalui iklan di portal JoC.'}</div></span></label>`).join('')}
-        </div>
-        ${a.recruitment_mode === 'NAMED' ? studentsEditor(a, errs) : '<div class="callout info">' + ic('info') + '<div class="body">Tiada senarai pelajar diperlukan. Pastikan iklan di portal JoC dibuka selepas permohonan ini diluluskan.</div></div>'}`;
-    }
-    if (step === 4) {
       body = `<h2 style="margin-bottom:6px">Bukti kelulusan program</h2><p class="muted small" style="margin-bottom:16px">Kertas kerja yang telah diluluskan, emel kelulusan atau surat lantikan. PDF/JPG/PNG, maks ${esc(S('MAX_UPLOAD_MB'))}MB setiap fail.</p>
         <label class="dropzone" id="dz">${ic('upload')}<div style="margin-top:8px"><b>Klik untuk pilih fail</b> atau seret ke sini</div><div class="small">Boleh lampir lebih daripada satu fail</div><input type="file" id="files" multiple accept=".pdf,.jpg,.jpeg,.png"></label>
         <div class="stack" style="gap:8px;margin:12px 0 18px">${a.attachments.map((f, i) => f.uploading
@@ -709,15 +749,16 @@
           ${fieldHTML('Tarikh kelulusan', 'proof_approval_date', inp(a, 'proof_approval_date', 'date'), errs)}
         </div>`;
     }
-    if (step === 5) {
-      const allErr = [1, 2, 3, 4].map(s => [s, Object.keys(validateStep(a, s)).length]).filter(x => x[1]);
+    if (step === LAST) {
+      const allErr = [1, 2, 3].map(s => [s, Object.keys(validateStep(a, s)).length]).filter(x => x[1]);
       body = `<div class="callout warn" style="margin-bottom:16px">${ic('alert')}<div class="body"><b>Permohonan BELUM DIHANTAR.</b> Semak ringkasan di bawah, tandakan perakuan, kemudian tekan <b>${a.status_code === 'AMEND_REQUIRED' ? 'Hantar semula' : 'Hantar permohonan'}</b> di bahagian bawah.</div></div>
         <h2 style="margin-bottom:4px">Ringkasan permohonan <span class="tag">DRAF</span></h2>
         <p class="small muted" style="margin-bottom:16px">Ini paparan semakan sahaja — belum dihantar kepada TD HEPA.</p>
-        ${allErr.length ? `<div class="callout err" style="margin-bottom:16px">${ic('alert')}<div class="body">Masih ada maklumat yang belum lengkap: ${allErr.map(([s]) => `<a href="#/form/${a.application_id}?step=${s}">Langkah ${s} (${STEPS[s - 1]})</a>`).join(', ')}.</div></div>` : ''}
+        ${allErr.length ? `<div class="callout err" style="margin-bottom:16px">${ic('alert')}<div class="body">Masih ada maklumat yang belum lengkap. Lengkapkan dahulu:<div class="row" style="margin-top:8px">${allErr.map(([s]) => `<a class="btn btn-sm" href="#/form/${a.application_id}?step=${s}">${ic('edit')} Langkah ${s}: ${STEPS[s - 1]}</a>`).join('')}</div></div></div>` : ''}
+        ${noticeWarning(a)}
         ${appSummary(a, null)}
         <div class="card card-pad" style="margin-top:16px">
-          <label class="check ${errs.declaration_accepted ? 'field error' : ''}"><input type="checkbox" name="declaration_accepted" ${a.declaration_accepted ? 'checked' : ''}><span>Saya mengesahkan maklumat di atas adalah benar dan program ini telah mendapat kelulusan pihak berkenaan. Saya faham bahawa kelulusan fakulti ini <b>bukan</b> kelulusan akhir JoC — saya perlu mendaftar tawaran di portal MySISWA@JoC selepas diluluskan.</span></label>
+          <label class="check ${errs.declaration_accepted ? 'field error' : ''}"><input type="checkbox" name="declaration_accepted" ${a.declaration_accepted ? 'checked' : ''}><span>Saya mengesahkan maklumat di atas adalah benar dan program ini telah mendapat kelulusan pihak berkenaan. Saya faham bahawa kelulusan fakulti ini <b>bukan</b> kelulusan akhir JoC — saya perlu mendaftar tawaran dan mengisi butiran pelajar di portal MySISWA@JoC selepas diluluskan.</span></label>
           ${errs.declaration_accepted ? `<div class="err" style="color:#dc2626;font-size:.8rem;margin-top:6px">${esc(errs.declaration_accepted)}</div>` : ''}
         </div>`;
     }
@@ -728,9 +769,9 @@
       ${resub && lastReview ? `<div class="callout warn" style="margin-bottom:16px">${ic('edit')}<div class="body"><b>Ulasan TD HEPA (${fmtDate(lastReview.decided_at)}):</b> ${esc(lastReview.comments)}</div></div>` : ''}
       ${stepper}
       <div class="card"><form class="card-body" id="wf" novalidate>${body}</form>
-        <div class="wizard-foot ${step === 5 ? 'final' : ''}">
+        <div class="wizard-foot ${step === LAST ? 'final' : ''}">
           <div class="row">${step > 1 ? `<button class="btn" data-nav="${step - 1}">${ic('left')} Kembali</button>` : `<button class="btn" data-act-save>${ic('save')} Simpan draf</button>`}</div>
-          <div class="row">${step < 5 ? `<button class="btn btn-primary" data-nav="${step + 1}">Seterusnya ${ic('right')}</button>` : `<button class="btn btn-primary" id="submit">${ic('send')} ${resub ? 'Hantar semula' : 'Hantar permohonan'}</button>`}</div>
+          <div class="row">${step < LAST ? `<button class="btn btn-primary" data-nav="${step + 1}">Seterusnya ${ic('right')}</button>` : `<button class="btn btn-primary" id="submit">${ic('send')} ${resub ? 'Hantar semula' : 'Hantar permohonan'}</button>`}</div>
         </div></div>`);
     bindStep(a, step);
   }
@@ -742,17 +783,6 @@
       ${wc && wc.over ? `<div class="callout warn" style="margin-bottom:14px">${ic('alert')}<div class="body">Purata <b>${wc.perWeek.toFixed(1)} jam seminggu</b> melebihi had <b>${wc.limit} jam</b> bagi ${esc(label('PERIOD_TYPE', a.period_type_code)).toLowerCase()}. Kurangkan jumlah jam atau panjangkan tempoh. (Anda masih boleh menghantar, tetapi TD HEPA mungkin meminta pindaan.)</div></div>` : ''}`;
   }
 
-  function studentsEditor(a, errs) {
-    const n = Number(a.num_students) || 0;
-    return `<div class="card"><div class="card-head"><h3>Senarai pelajar (${a.students.length}${n ? ' / ' + n : ''})</h3>
-        <div class="row"><button class="btn btn-sm" type="button" id="paste">${ic('copy')} Tampal dari Excel</button><button class="btn btn-sm" type="button" id="add-stu">${ic('plus')} Tambah</button></div></div>
-      <div class="table-wrap"><table class="stu-table"><thead><tr><th>#</th><th>No. matrik</th><th>Nama pelajar</th><th>Program pengajian</th><th></th></tr></thead><tbody>
-        ${a.students.map((s, i) => `<tr><td>${i + 1}</td><td><input data-stu="${i}" data-col="0" value="${esc(s[0])}" inputmode="numeric" placeholder="No. matrik" aria-label="No. matrik"></td><td><input data-stu="${i}" data-col="1" value="${esc(s[1])}" placeholder="Nama pelajar" aria-label="Nama pelajar"></td><td><input data-stu="${i}" data-col="2" value="${esc(s[2])}" placeholder="Program pengajian" aria-label="Program pengajian"></td><td><button class="btn btn-ghost btn-icon btn-sm" type="button" data-del-stu="${i}" aria-label="Buang">${ic('x')}</button></td></tr>`).join('') || `<tr><td colspan="5" class="muted" style="text-align:center;padding:20px">Belum ada pelajar. Klik "Tambah" atau "Tampal dari Excel".</td></tr>`}
-      </tbody></table></div></div>
-      ${errs.students ? `<div class="err" style="color:#dc2626;font-size:.85rem;margin-top:8px">${esc(errs.students)}</div>` : ''}
-      ${n && a.students.length && n !== a.students.length ? `<div class="callout warn" style="margin-top:12px">${ic('alert')}<div class="body">Bilangan pelajar dalam senarai (${a.students.length}) tidak sama dengan bilangan pelajar JOC yang dimohon (${n}).</div></div>` : ''}`;
-  }
-
   function readForm(a) {
     const f = $('#wf'); if (!f) return;
     $$('input[name], select[name], textarea[name]', f).forEach(el => {
@@ -762,7 +792,6 @@
       else if (el.type === 'number') a[el.name] = el.value === '' ? '' : Number(el.value);
       else a[el.name] = el.value.trim();
     });
-    $$('[data-stu]', f).forEach(el => { a.students[+el.dataset.stu][+el.dataset.col] = el.value.trim(); });
     a.estimated_cost = (Number(a.num_students) || 0) * (Number(a.hours_per_student) || 0) * Number(a.rate_per_hour);
     scheduleSave(a);
   }
@@ -773,17 +802,19 @@
   function bindStep(a, step) {
     const f = $('#wf');
     f.addEventListener('submit', (e) => e.preventDefault());
-    f.addEventListener('input', () => {
-      readForm(a);
-      if (step === 2) $('#live').innerHTML = liveCalc(a, weeklyCheck(a));
-    });
-    f.addEventListener('change', (e) => { readForm(a); if (e.target.name === 'recruitment_mode') changed(a, step); });
+    const refresh2 = () => {
+      if (step !== 2) return;
+      $('#live').innerHTML = liveCalc(a, weeklyCheck(a));
+      $('#notice').innerHTML = noticeWarning(a) || `<p class="small muted" style="margin:-6px 0 14px">${ic('clock')} ${noticeText()}</p>`;
+    };
+    f.addEventListener('input', () => { readForm(a); refresh2(); });
+    f.addEventListener('change', () => { readForm(a); refresh2(); });
     $$('[data-nav]').forEach(b => b.onclick = (e) => {
       e.preventDefault(); readForm(a);
       if (uploading) return toast('Tunggu sehingga semua fail selesai dimuat naik', 'err');
       const to = +b.dataset.nav;
       if (to > step) { const errs = validateStep(a, step); if (Object.keys(errs).length) { renderStep(a, step, errs); toast('Sila lengkapkan maklumat yang ditanda', 'err'); return; } }
-      act(b, async () => { if (await flushSave()) go(`#/form/${a.application_id}?step=${to}`); });
+      act(b, async () => { if (await flushSave()) go(`#/form/${a.application_id}?step=${to}`); }, 'Menyimpan…');
     });
     const saveBtn = $('[data-act-save]'); if (saveBtn) saveBtn.onclick = (e) => { e.preventDefault(); readForm(a); act(saveBtn, async () => { if (await flushSave()) toast('Draf disimpan'); }); };
 
@@ -808,23 +839,7 @@
         $('[data-cancel]', li).onclick = () => renderStep(a, 2, {});
       });
     }
-    if (step === 3 && a.recruitment_mode === 'NAMED') {
-      $('#add-stu').onclick = () => { readForm(a); a.students.push(['', '', '']); changed(a, 3); };
-      $$('[data-del-stu]').forEach(b => b.onclick = () => { readForm(a); a.students.splice(+b.dataset.delStu, 1); changed(a, 3); });
-      $('#paste').onclick = () => {
-        const m = modal(`<div class="modal-head"><h3>Tampal dari Excel</h3><button class="btn btn-ghost btn-icon" data-close>${ic('x')}</button></div>
-          <div class="modal-body"><p class="small muted" style="margin-bottom:10px">Salin 3 lajur dari Excel (No. matrik, Nama, Program) dan tampal di bawah. Satu pelajar setiap baris.</p>
-          <textarea id="pt" rows="8" placeholder="231011234&#9;Nur Aisyah binti Ahmad&#9;RY46 Kejuruteraan Elektronik"></textarea></div>
-          <div class="modal-foot"><button class="btn" data-close>Batal</button><button class="btn btn-primary" id="pt-ok">Tambah pelajar</button></div>`);
-        $('#pt-ok', m).onclick = () => {
-          readForm(a);
-          const rows = $('#pt').value.split(/\r?\n/).map(l => l.split(/\t|,(?=\S)/).map(x => x.trim())).filter(r => r[0]);
-          rows.forEach(r => a.students.push([r[0] || '', r[1] || '', r[2] || '']));
-          closeModal(); changed(a, 3); toast(`${rows.length} pelajar ditambah`);
-        };
-      };
-    }
-    if (step === 4) {
+    if (step === 3) {
       const readB64 = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(file); });
       const addFiles = async (files) => {
         readForm(a);
@@ -838,14 +853,14 @@
         const pendingRows = ok.map(file => ({ uploading: true, file_name: file.name, size: file.size, type: /emel|email/i.test(file.name) ? 'EMEL_KELULUSAN' : 'KERTAS_KERJA', file }));
         a.attachments.push(...pendingRows);
         uploading += pendingRows.length; blocking = uploading > 0;
-        renderStep(a, 4, {});
+        renderStep(a, 3, {});
         await flushSave();
         for (const row of pendingRows) {
           const att = await call(API.upload(a.application_id, { name: row.file.name, mime: row.file.type || 'application/octet-stream', size: row.file.size, data: IS_MOCK ? '' : await readB64(row.file) }, row.type));
           const idx = a.attachments.indexOf(row);
           if (att) a.attachments[idx] = att; else a.attachments.splice(idx, 1);
           uploading--; blocking = uploading > 0;
-          if (location.hash.includes(`/form/${a.application_id}?step=4`)) renderStep(a, 4, {});
+          if (location.hash.includes(`/form/${a.application_id}?step=3`)) renderStep(a, 3, {});
         }
       };
       $('#files').onchange = (e) => addFiles(e.target.files);
@@ -857,16 +872,16 @@
       $$('[data-del-att]').forEach(b => b.onclick = async (e) => {
         e.preventDefault(); readForm(a);
         const f = a.attachments[+b.dataset.delAtt];
-        if (await call(API.removeAttachment(a.application_id, f.attachment_id))) { a.attachments = a.attachments.filter(x => x !== f); renderStep(a, 4, {}); }
+        if (await call(API.removeAttachment(a.application_id, f.attachment_id))) { a.attachments = a.attachments.filter(x => x !== f); renderStep(a, 3, {}); }
       });
     }
-    if (step === 5) {
+    if (step === LAST) {
       $('#submit').onclick = async (e) => {
         e.preventDefault(); readForm(a);
-        for (const s of [1, 2, 3, 4]) { const errs = validateStep(a, s); if (Object.keys(errs).length) { toast(`Langkah ${s} belum lengkap`, 'err'); return go(`#/form/${a.application_id}?step=${s}`); } }
-        const errs = validateStep(a, 5); if (Object.keys(errs).length) return renderStep(a, 5, errs);
+        for (const s of [1, 2, 3]) { const errs = validateStep(a, s); if (Object.keys(errs).length) { toast(`Langkah ${s} belum lengkap`, 'err'); return go(`#/form/${a.application_id}?step=${s}`); } }
+        const errs = validateStep(a, LAST); if (Object.keys(errs).length) return renderStep(a, LAST, errs);
         const resub = a.status_code === 'AMEND_REQUIRED';
-        if (!await confirmBox(resub ? 'Hantar semula permohonan?' : 'Hantar permohonan?', `<p>Permohonan akan dihantar kepada TD HEPA untuk semakan. Anda tidak boleh menyunting sehingga keputusan dibuat.</p>`, resub ? 'Hantar semula' : 'Hantar')) return;
+        if (!await confirmBox(resub ? 'Hantar semula permohonan?' : 'Hantar permohonan?', `<p>Permohonan akan dihantar kepada TD HEPA untuk semakan (dalam ${SLA_DAYS} hari bekerja). Anda tidak boleh menyunting sehingga keputusan dibuat.</p>${isUrgent(a) ? `<p class="small" style="margin-top:8px;color:var(--st-amend)"><b>Permohonan segera:</b> tarikh mula kurang daripada ${minNotice()} hari — tiada jaminan kelulusan sebelum tarikh mula.</p>` : ''}`, resub ? 'Hantar semula' : 'Hantar')) return;
         const ok = await act($('#submit'), async () => {
           if (!await flushSave()) return false;
           if (!apply(await call(API.submit(a.application_id)))) return false;
@@ -908,11 +923,6 @@
         <dt>Anggaran kos</dt><dd><b>${fmtRM(a.estimated_cost)}</b></dd>
         <dt>Skop tugas</dt><dd>${ch('scopes', `<ol style="margin:0;padding-left:18px">${a.scopes.map(s => `<li>${esc(s)}</li>`).join('')}</ol>`, v => v.join('; '))}</dd>
       </dl></div></div>
-      <div class="card"><div class="card-head"><h3>Pelajar</h3><span class="tag">${esc(label('RECRUIT_MODE', a.recruitment_mode))}</span></div>
-        ${a.recruitment_mode === 'NAMED' ? `<div class="table-wrap"><table><thead><tr><th>#</th><th>No. matrik</th><th>Nama</th><th>Program</th></tr></thead><tbody>${a.students.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s[0])}</td><td>${esc(s[1])}</td><td>${esc(s[2])}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">Tiada</td></tr>'}</tbody></table></div>
-          ${prevSnap && 'students' in prevSnap && prevSnap.students !== a.students.length ? `<div class="card-body small"><span class="changed">Bilangan dalam senarai: ${a.students.length}<span class="was">sebelum: ${prevSnap.students}</span></span></div>` : ''}`
-          : '<div class="card-body muted">Pelajar akan direkrut melalui iklan terbuka di portal JoC.</div>'}
-      </div>
       <div class="card"><div class="card-head"><h3>Bukti kelulusan</h3>${attChanged ? '<span class="badge st-AMEND_REQUIRED">Lampiran dikemas kini</span>' : ''}</div><div class="card-body stack" style="gap:8px">
         ${a.attachments.map(f => `<div class="file-row"><div class="fi">${esc((f.file_name.split('.').pop() || '').toUpperCase().slice(0, 4))}</div><div class="fn">${esc(f.file_name)}<div class="small muted">${esc(label('ATTACHMENT_TYPE', f.type))} · ${(f.size / 1024 / 1024).toFixed(2)} MB${prevSnap && prevSnap.attachments && !prevSnap.attachments.includes(f.file_name) ? ' · <b style="color:var(--st-amend)">BAHARU</b>' : ''}</div></div><button class="btn btn-sm" data-preview="${esc(f.attachment_id)}" data-name="${esc(f.file_name)}">${ic('eye')} Lihat</button></div>`).join('') || '<p class="muted">Tiada lampiran</p>'}
         <dl class="dl" style="margin-top:10px"><dt>Diluluskan oleh</dt><dd>${esc(a.proof_approved_by_name || '-')}${a.proof_approved_by_position ? ', ' + esc(a.proof_approved_by_position) : ''}</dd><dt>Tarikh kelulusan</dt><dd>${fmtDate(a.proof_approval_date)}</dd></dl>
@@ -939,7 +949,7 @@
   }
 
   function timelineHTML(a) {
-    const dotCls = { SUBMIT: '', RESUBMIT: '', CREATE: 'grey', REQUEST_AMEND: 'warn', APPROVE: 'ok', LETTER_ISSUED: 'ok', REJECT: 'err', WITHDRAW: 'grey' };
+    const dotCls = { SUBMIT: '', RESUBMIT: '', CREATE: 'grey', REQUEST_AMEND: 'warn', APPROVE: 'ok', LETTER_ISSUED: 'ok', REJECT: 'err', WITHDRAW: 'grey', CLAIM: 'grey', RELEASE: 'grey', TAKEOVER: 'grey' };
     return `<ul class="timeline">${histOf(a.application_id).map(h => `<li><span class="dot ${dotCls[h.action_code] || ''}"></span>
       <div class="tt">${esc(label('ACTION', h.action_code))}${h.version_no ? ` <span class="small muted">· versi ${h.version_no}</span>` : ''}</div>
       <div class="tm">${fmtDT(h.created_at)} · ${esc(userName(h.actor_id))}</div>
@@ -961,7 +971,7 @@
       <div class="page-head"><div><div class="row" style="margin-bottom:6px">${badge(a.status_code)}<span class="small muted">${esc(a.ref_no || a.application_id)}</span></div><h1>${esc(a.programme_name || '(Tanpa nama)')}</h1></div><div class="row">${actions.join('')}</div></div>
       ${a.status_code === 'AMEND_REQUIRED' && lastAmend ? `<div class="callout warn" style="margin-bottom:16px">${ic('edit')}<div class="body"><b>Pindaan diminta oleh TD HEPA (${fmtDate(lastAmend.decided_at)}):</b><br>${esc(lastAmend.comments)}</div></div>` : ''}
       ${a.status_code === 'REJECTED' && lastReject ? `<div class="callout err" style="margin-bottom:16px">${ic('x')}<div class="body"><b>Tidak diluluskan:</b> ${esc(lastReject.comments)}</div></div>` : ''}
-      ${pending(a) ? `<div class="callout info" style="margin-bottom:16px">${ic('clock')}<div class="body">Permohonan sedang disemak oleh TD HEPA. Anda akan dimaklumkan melalui emel.</div></div>` : ''}
+      ${pending(a) ? `<div class="callout info" style="margin-bottom:16px">${ic('clock')}<div class="body">${claimActive(a) ? `Permohonan sedang disemak oleh <b>${esc(userName(a.claimed_by))}</b>.` : 'Permohonan menunggu semakan TD HEPA.'} Semakan dibuat dalam ${SLA_DAYS} hari bekerja dan anda akan dimaklumkan melalui emel.</div></div>` : ''}
       ${a.status_code === 'APPROVED' ? approvedPanel(a, letter) : ''}
       <div class="detail-grid">
         <div>${appSummary(a, null)}</div>
@@ -996,7 +1006,15 @@
       <div class="card-head"><div><h2>Diluluskan oleh fakulti ✓</h2><p class="small muted">${letter ? esc(letter.letter_ref_no) + ' · ' + fmtDate(letter.generated_at) : ''}</p></div>
         <div class="row"><button class="btn btn-primary" id="letter">${ic('download')} Surat kelulusan (PDF)</button><button class="btn" id="csv">${ic('download')} Maklumat untuk portal JoC (CSV)</button>${['REVIEWER', 'ADMIN'].includes(session.role) && letter ? `<button class="btn" id="regen">${ic('refresh')} Jana semula surat</button>` : ''}</div></div>
       ${letter && !IS_MOCK && !letter.drive_file_id ? `<div class="card-body" style="padding-bottom:0"><div class="callout warn">${ic('alert')}<div class="body">Surat PDF belum berjaya dijana.${['REVIEWER', 'ADMIN'].includes(session.role) ? ' Tekan <b>Jana semula surat</b>.' : ' TD HEPA akan menjananya semula.'}</div></div></div>` : ''}
-      ${isOwner ? `<div class="card-body"><div class="callout ok">${ic('check')}<div class="body"><b>Langkah seterusnya:</b> daftar tawaran latihan di <a href="${JOC_PORTAL}" target="_blank" rel="noopener">portal MySISWA@JoC</a> (menu Penempatan Latihan → Tawaran Latihan → + Tambah Tawaran Latihan). Muat turun fail CSV — ia mengandungi semua maklumat yang diluluskan (dan senarai pelajar) mengikut susunan borang JoC, sedia untuk disalin.</div></div></div>` : ''}
+      ${isOwner ? `<div class="card-body"><div class="callout ok">${ic('check')}<div class="body"><b>Langkah seterusnya di portal MySISWA@JoC:</b>
+        <ol class="next-steps">
+          <li>Log masuk ke <a href="${JOC_PORTAL}" target="_blank" rel="noopener">portal MySISWA@JoC</a> (joc.mohe.gov.my).</li>
+          <li>Pergi ke <b>Penempatan Latihan → Tawaran Latihan → + Tambah Tawaran Latihan</b>.</li>
+          <li>Isi tawaran menggunakan maklumat yang diluluskan — muat turun fail <b>CSV</b> di atas (susunan sama seperti borang JoC).</li>
+          <li>Lampirkan <b>surat kelulusan fakulti</b> (PDF di atas) jika diminta.</li>
+          <li>Isi <b>butiran pelajar</b> terus di portal JoC.</li>
+          <li>CGEE akan menyemak tawaran anda di peringkat universiti.</li>
+        </ol></div></div></div>` : ''}
     </div>`;
   }
 
@@ -1020,10 +1038,6 @@
       const q = (x) => `"${String(x == null ? '' : x).replace(/"/g, '""')}"`;
       const rows = [['MAKLUMAT UNTUK PORTAL MySISWA@JoC', ''], ['Rujukan', a.ref_no], ['Program', a.programme_name], ['Surat kelulusan', letter ? letter.letter_ref_no : ''], ['', ''], ['Medan (ikut borang JoC)', 'Nilai']]
         .concat(joCopyFields(a));
-      if (a.recruitment_mode === 'NAMED' && a.students.length) {
-        rows.push(['', ''], ['SENARAI PELAJAR', ''], ['No. Matrik', 'Nama', 'Program']);
-        a.students.forEach(s => rows.push(s));
-      }
       downloadText(`${a.ref_no}_untuk_portal_JoC.csv`, rows.map(r => r.map(q).join(',')).join('\r\n'));
     };
   }
@@ -1032,7 +1046,7 @@
     const applicant = D().users.find(u => u.user_id === a.applicant_id);
     const html = `<div class="letter print-area">
       <div class="lh"><img src="${LOGO}" alt="UniMAP"><div class="fx">FAKULTI KEJURUTERAAN & TEKNOLOGI ELEKTRONIK<br>Kampus Tetap Pauh Putra, 02600 Arau, Perlis</div></div>
-      <table style="border:0;width:auto;margin-bottom:12px"><tr><td style="border:0;padding:0 12px 0 0">Rujukan kami</td><td style="border:0;padding:0">: ${esc(letter ? letter.letter_ref_no : '-')}</td></tr><tr><td style="border:0;padding:0 12px 0 0">Tarikh</td><td style="border:0;padding:0">: ${fmtDate(letter ? letter.generated_at : TODAY())}</td></tr></table>
+      <table style="border:0;width:auto;margin-bottom:12px"><tr><td style="border:0;padding:0 12px 0 0;white-space:nowrap">Rujukan kami</td><td style="border:0;padding:0">: ${esc(letter ? letter.letter_ref_no : '-')}</td></tr><tr><td style="border:0;padding:0 12px 0 0;white-space:nowrap">Tarikh</td><td style="border:0;padding:0">: ${fmtDate(letter ? letter.generated_at : TODAY())}</td></tr></table>
       <p><b>${esc(applicant.full_name)}</b><br>${esc(applicant.position || '')}<br>${esc(deptName(a.department_id))}<br>Fakulti Kejuruteraan & Teknologi Elektronik<br>Universiti Malaysia Perlis</p>
       <p style="margin-top:12px">Tuan/Puan,</p>
       <p style="margin-top:10px"><b>KELULUSAN PERINGKAT FAKULTI BAGI PERMOHONAN MySISWA JOB ON CAMPUS (JoC): ${esc(a.programme_name.toUpperCase())}</b></p>
@@ -1067,13 +1081,13 @@
         [['p-sub', `${q.length} menunggu semakan`, '#/review'], ['p-amend', `${apps.filter(a => a.status_code === 'AMEND_REQUIRED').length} perlu pindaan`, '#/review?tab=AMEND_REQUIRED'], ['p-ok', `${y.length} lulus`, '#/review?tab=APPROVED']],
         `<a class="btn btn-gold" href="#/review">${ic('inbox')} Buka senarai semakan</a>`)}
       <div class="kpis">
-        ${kpi('Menunggu semakan', q.length, q.length ? 'paling lama ' + daysBetween(q[0].last_submitted_at, TODAY()) + ' hari' : 'tiada', 'c-sub', 'clock')}
-        ${kpi('Diluluskan', y.length, fmtNum(y.reduce((s, a) => s + Number(a.num_students), 0)) + ' tempat JOC', 'c-ok', 'check')}
-        ${kpi('Jumlah jam diluluskan', y.reduce((s, a) => s + a.num_students * a.hours_per_student, 0), 'jam pelajar', 'c-gold', 'chart')}
-        ${kpi('Anggaran kos diluluskan', fmtRM(y.reduce((s, a) => s + a.estimated_cost, 0)), 'RM6 sejam', 'c-draft', 'list', true)}
+        ${kpi('Menunggu semakan', q.length, q.length ? 'paling lama ' + workingDaysSince(q[0].last_submitted_at) + ' hari bekerja' : 'tiada', 'c-sub', 'clock', false, '#/review')}
+        ${kpi('Diluluskan', y.length, fmtNum(y.reduce((s, a) => s + Number(a.num_students), 0)) + ' tempat JOC', 'c-ok', 'check', false, '#/review?tab=APPROVED')}
+        ${kpi('Jumlah jam diluluskan', y.reduce((s, a) => s + a.num_students * a.hours_per_student, 0), 'jam pelajar', 'c-gold', 'chart', false, '#/review?tab=APPROVED')}
+        ${kpi('Anggaran kos diluluskan', fmtRM(y.reduce((s, a) => s + a.estimated_cost, 0)), 'RM6 sejam', 'c-draft', 'list', true, '#/reports')}
       </div>
       <div class="card"><div class="card-head"><h2>Menunggu semakan</h2><a class="btn btn-sm" href="#/review">Lihat semua</a></div>
-        <div class="app-list">${q.map(a => appItem(a, `#/review/${a.application_id}`)).join('') || emptyState('Tiada permohonan menunggu. 🎉')}</div></div>`);
+        <div class="app-list">${q.map(a => appItem(a, `#/review/${a.application_id}`, `<span>${esc(userName(a.applicant_id))}</span>${reviewChips(a)}`)).join('') || emptyState('Tiada permohonan menunggu. 🎉')}</div></div>`);
   }
 
   function listPage(title, base, filterFn) {
@@ -1095,11 +1109,7 @@
         <input type="text" id="q" placeholder="Cari program, rujukan atau pemohon" value="${esc(st.get('q') || '')}" style="max-width:340px">
         <select id="dept" style="max-width:280px"><option value="">Semua jabatan</option>${D().departments.map(d => `<option value="${d.department_id}" ${d.department_id === dept ? 'selected' : ''}>${esc(d.code)} – ${esc(d.name)}</option>`).join('')}</select>
       </div>
-      <div class="card"><div class="app-list">${apps.map(a => {
-        const days = pending(a) ? daysBetween(a.last_submitted_at, TODAY()) : 0;
-        const waited = pending(a) ? `<span><b style="color:${days > 5 ? '#dc2626' : 'inherit'}">${days} hari menunggu</b></span>` : '';
-        return appItem(a, `${session.role === 'REVIEWER' ? '#/review/' : '#/app/'}${a.application_id}`, `<span>${esc(userName(a.applicant_id))}</span>${waited}`);
-      }).join('') || emptyState('Tiada permohonan dalam senarai ini.')}</div></div>`);
+      <div class="card"><div class="app-list">${apps.map(a => appItem(a, `${session.role === 'REVIEWER' ? '#/review/' : '#/app/'}${a.application_id}`, `<span>${esc(userName(a.applicant_id))}</span>${reviewChips(a)}`)).join('') || emptyState('Tiada permohonan dalam senarai ini.')}</div></div>`);
     $$('[data-tab]').forEach(b => b.onclick = () => go(base + qs({ tab: b.dataset.tab })));
     $('#dept').onchange = (e) => go(base + qs({ dept: e.target.value }));
     $('#q').onkeydown = (e) => { if (e.key === 'Enter') go(base + qs({ q: e.target.value })); };
@@ -1108,6 +1118,17 @@
 
   route('/review', () => listPage('Senarai Semakan', '#/review'), { roles: ['REVIEWER'] });
   route('/all', () => listPage('Semua Permohonan', '#/all'), { roles: ['REVIEWER', 'VIEWER'] });
+
+  /** Right-hand panel once a decision is made: who decided, when, and the reason / comments. */
+  function decidedPanel(a) {
+    const r = reviewsOf(a.application_id).pop();
+    const kind = { REJECT: ['err', 'Sebab ditolak'], AMEND: ['warn', 'Pindaan diminta'], APPROVE: ['ok', 'Ulasan'] }[r ? r.decision_code : ''] || ['info', ''];
+    const next = { APPROVED: 'Tiada tindakan diperlukan.', REJECTED: 'Tiada tindakan diperlukan. Pemohon boleh membuat permohonan baharu.', AMEND_REQUIRED: 'Menunggu pindaan daripada pemohon.' }[a.status_code] || '';
+    return `<h3 style="margin-bottom:12px">Keputusan</h3><div class="row" style="margin-bottom:10px">${badge(a.status_code)}</div>
+      ${r ? `<p class="small muted" style="margin-bottom:10px">${esc(label('DECISION', r.decision_code))} oleh <b>${esc(userName(r.reviewer_id))}</b> · ${fmtDT(r.decided_at)}</p>
+      ${r.comments ? `<div class="callout ${kind[0]}">${ic(kind[0] === 'ok' ? 'check' : kind[0] === 'err' ? 'x' : 'edit')}<div class="body"><b>${kind[1]}:</b><br>${esc(r.comments)}</div></div>` : ''}` : ''}
+      <p class="small muted" style="margin-top:10px">${next}</p>`;
+  }
 
   route('/review/:id', (id) => {
     const a = getApp(id);
@@ -1119,11 +1140,23 @@
     const wc = weeklyCheck(a);
     const flags = [];
     if (wc && wc.over) flags.push(`Purata ${wc.perWeek.toFixed(1)} jam/minggu melebihi had ${wc.limit} jam.`);
-    if (a.recruitment_mode === 'NAMED' && a.students.length !== Number(a.num_students)) flags.push(`Senarai pelajar (${a.students.length}) ≠ bilangan dimohon (${a.num_students}).`);
+    if (isUrgent(a)) flags.push(`Permohonan segera: tarikh mula ${noticeGiven(a)} hari selepas dihantar (notis minimum ${minNotice()} hari).`);
     if (!a.attachments.some(f => f.type !== 'LAIN')) flags.push('Tiada kertas kerja / emel / surat kelulusan rasmi dilampirkan.');
+    const mine = claimActive(a) && a.claimed_by === session.user_id;
+    const other = claimActive(a) && !mine;
     const decisionPanel = pending(a) ? (own
       ? `<div class="callout warn">${ic('shield')}<div class="body">Ini permohonan anda sendiri. Keputusan mesti dibuat oleh penyemak lain atau Pentadbir.</div></div>`
-      : `<h3 style="margin-bottom:12px">Keputusan</h3>
+      : other
+      ? `<h3 style="margin-bottom:12px">Keputusan</h3>
+        <div class="callout warn">${ic('eye')}<div class="body"><b>Sedang disemak oleh ${esc(userName(a.claimed_by))}</b> sejak ${fmtDT(a.claimed_at)}. Anda boleh membaca permohonan ini, tetapi keputusan dibuat oleh penyemak tersebut.</div></div>
+        <button class="btn" id="takeover" style="width:100%;margin-top:12px">${ic('refresh')} Ambil alih semakan</button>
+        <p class="small muted" style="margin-top:8px">Gunakan jika penyemak tersebut tidak dapat meneruskan (cth. bercuti). Tuntutan tamat sendiri selepas ${CLAIM_HOURS} jam.</p>`
+      : !mine
+      ? `<h3 style="margin-bottom:12px">Keputusan</h3>
+        <p class="small muted" style="margin-bottom:12px">Belum ada penyemak yang mengambil permohonan ini. Klik di bawah supaya penyemak lain tahu anda sedang menyemaknya.</p>
+        <button class="btn btn-primary" id="claim" style="width:100%">${ic('eye')} Saya semak permohonan ini</button>`
+      : `<div class="row between" style="margin-bottom:12px"><h3>Keputusan</h3><button class="btn btn-ghost btn-sm" id="release" title="Kembalikan ke senarai supaya penyemak lain boleh mengambilnya">${ic('x')} Lepaskan</button></div>
+        <div class="callout info small" style="margin-bottom:12px">${ic('eye')}<div class="body">Anda sedang menyemak permohonan ini sejak ${fmtDT(a.claimed_at)}. Penyemak lain melihat nama anda.</div></div>
         <div class="decision-btns">
           <button class="btn" data-dec="AMEND">${ic('edit')} Pindaan</button>
           <button class="btn" data-dec="APPROVE">${ic('check')} Lulus</button>
@@ -1131,21 +1164,37 @@
         <label class="field"><span>Ulasan kepada pemohon <span id="req" class="req hidden">*</span></span><textarea id="cmt" rows="4" placeholder="Wajib bagi Pindaan dan Tolak"></textarea></label>
         <button class="btn btn-primary" id="dec-go" style="width:100%" disabled>Pilih keputusan</button>
         <p class="small muted" style="margin-top:10px">Lulus akan menjana surat kelulusan dan menghantar emel kepada pemohon & CGEE (mod emel semasa: <b>${esc(S('EMAIL_MODE'))}</b>).</p>`)
-      : `<div class="row" style="margin-bottom:8px">${badge(a.status_code)}</div><p class="small muted">Tiada tindakan diperlukan.</p>`;
+      : decidedPanel(a);
     shell(`Semakan ${a.ref_no}`, `
       <div class="page-head"><div><div class="row" style="margin-bottom:6px">${badge(a.status_code)}<span class="small muted">${esc(a.ref_no)} · versi ${a.version_no} · dihantar ${fmtDT(a.last_submitted_at)}</span></div><h1>${esc(a.programme_name)}</h1><p class="muted">${esc(userName(a.applicant_id))} · ${esc(deptName(a.department_id))}</p></div>
         <div class="row"><a class="btn btn-sm" href="#/review">${ic('left')} Senarai</a>${pending(a) ? `<button class="btn btn-sm btn-primary show-sm" id="jump">Buat keputusan ↓</button>` : ''}</div></div>
       ${prevSnap ? `<div class="callout info" style="margin-bottom:16px">${ic('refresh')}<div class="body"><b>Dihantar semula.</b> Medan yang berubah sejak versi ${a.version_no - 1} ditanda <span class="changed">kuning</span>.${prevReview && prevReview.decision_code === 'AMEND' ? `<br><span class="small">Ulasan anda sebelum ini: “${esc(prevReview.comments)}”</span>` : ''}</div></div>` : ''}
       ${flags.length && pending(a) ? `<div class="callout warn" style="margin-bottom:16px">${ic('alert')}<div class="body"><b>Semakan automatik:</b><ul style="margin:6px 0 0;padding-left:18px">${flags.map(f => `<li>${esc(f)}</li>`).join('')}</ul></div></div>` : ''}
+      ${!pending(a) ? `<div class="card card-pad decision decision-top">${decisionPanel}</div>` : ''}
       ${a.status_code === 'APPROVED' ? approvedPanel(a, letterOf(id)) : ''}
       <div class="detail-grid">
         <div>${appSummary(a, prevSnap)}</div>
-        <div class="stack"><div class="card card-pad decision">${decisionPanel}</div>
+        <div class="stack"><div class="card card-pad decision ${pending(a) ? '' : 'decision-side'}">${decisionPanel}</div>
           <div class="card"><div class="card-head"><h3>Sejarah</h3></div><div class="card-body">${timelineHTML(a)}</div></div></div>
       </div>`);
     bindPreview();
     bindApproved(a, letterOf(id));
-    if ($('#jump')) $('#jump').onclick = () => $('.decision').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Plain window.scrollTo: smooth scrollIntoView does nothing inside the Apps Script sandbox frame.
+    if ($('#jump')) $('#jump').onclick = () => window.scrollTo(0, $('.decision').getBoundingClientRect().top + window.scrollY - 80);
+    const claimAct = async (btn, fn, msg, done) => {
+      if (await act(btn, async () => apply(await call(fn())), msg)) { toast(done); render(); }
+    };
+    if ($('#claim')) $('#claim').onclick = (e) => claimAct(e.currentTarget, () => API.claim(id), 'Mengambil permohonan untuk semakan…', 'Anda kini menyemak permohonan ini');
+    if ($('#release')) $('#release').onclick = async (e) => {
+      const btn = e.currentTarget;
+      if (!await confirmBox('Lepaskan semakan?', '<p>Permohonan akan kembali ke senarai sebagai <b>Belum diambil</b> supaya penyemak lain boleh menyemaknya.</p>', 'Lepaskan')) return;
+      claimAct(btn, () => API.release(id), 'Melepaskan semakan…', 'Semakan dilepaskan');
+    };
+    if ($('#takeover')) $('#takeover').onclick = async (e) => {
+      const btn = e.currentTarget;
+      if (!await confirmBox('Ambil alih semakan?', `<p>Permohonan ini sedang disemak oleh <b>${esc(userName(a.claimed_by))}</b>. Ambil alih hanya jika beliau tidak dapat meneruskan. Tindakan ini direkod dalam sejarah.</p>`, 'Ambil alih', 'btn-warn')) return;
+      claimAct(btn, () => API.takeover(id), 'Mengambil alih semakan…', 'Anda kini menyemak permohonan ini');
+    };
     let choice = null;
     const labels = { AMEND: 'Minta pindaan', APPROVE: 'Luluskan permohonan', REJECT: 'Tolak permohonan' };
     $$('[data-dec]').forEach(b => b.onclick = () => {
@@ -1188,16 +1237,17 @@
     const months = Array.from({ length: 12 }, (_, i) => [BULAN[i], apps.filter(a => a.first_submitted_at && +a.first_submitted_at.slice(5, 7) === i + 1 && a.first_submitted_at.startsWith(TODAY().slice(0, 4))).length]);
     const maxD = Math.max(1, ...byDept.map(x => x[1])), maxS = Math.max(1, ...byStatus.map(x => x[2])), maxM = Math.max(1, ...months.map(x => x[1]));
     const statusColor = { SUBMITTED: 'var(--st-sub)', RESUBMITTED: 'var(--st-sub)', AMEND_REQUIRED: '#d97706', APPROVED: '#16a34a', REJECTED: '#dc2626', WITHDRAWN: '#94a3b8' };
+    const L = (tab) => ['REVIEWER', 'VIEWER'].includes(session.role) ? '#/all' + (tab ? '?tab=' + tab : '') : '';
     shell(title, `
       <div class="page-head"><div><h1>Laporan JOC FKTEN ${TODAY().slice(0, 4)}</h1><p class="muted">Data dikemas kini secara langsung daripada pangkalan data sistem.</p></div><button class="btn" id="exp">${ic('download')} Eksport CSV</button></div>
       <div class="kpis">
-        ${kpi('Permohonan dihantar', apps.length, apps.filter(pending).length + ' dalam semakan', 'c-sub', 'send')}
-        ${kpi('Diluluskan', ok.length, (apps.length ? Math.round(ok.length / apps.length * 100) : 0) + '% kadar kelulusan', 'c-ok', 'check')}
-        ${kpi('Tempat JOC diluluskan', ok.reduce((s, a) => s + Number(a.num_students), 0), fmtNum(ok.reduce((s, a) => s + a.num_students * a.hours_per_student, 0)) + ' jam pelajar', 'c-gold', 'users')}
+        ${kpi('Permohonan dihantar', apps.length, apps.filter(pending).length + ' dalam semakan', 'c-sub', 'send', false, L(''))}
+        ${kpi('Diluluskan', ok.length, (apps.length ? Math.round(ok.length / apps.length * 100) : 0) + '% kadar kelulusan', 'c-ok', 'check', false, L('APPROVED'))}
+        ${kpi('Tempat JOC diluluskan', ok.reduce((s, a) => s + Number(a.num_students), 0), fmtNum(ok.reduce((s, a) => s + a.num_students * a.hours_per_student, 0)) + ' jam pelajar', 'c-gold', 'users', false, L('APPROVED'))}
         ${kpi('Anggaran kos diluluskan', fmtRM(ok.reduce((s, a) => s + a.estimated_cost, 0)), 'kadar RM6 sejam', 'c-draft', 'chart', true)}
       </div>
       <div class="grid-2" style="gap:16px">
-        <div class="card"><div class="card-head"><h3>Permohonan mengikut jabatan</h3></div><div class="card-body bars">${byDept.map(([c, n, cost]) => `<div class="bar-row"><span>${esc(c)} <span class="small muted">${fmtRM(cost)}</span></span><div class="bar-track"><div class="bar-fill" style="width:${n / maxD * 100}%"></div></div><span class="v">${n}</span></div>`).join('')}</div></div>
+        <div class="card"><div class="card-head"><h3>Permohonan mengikut jabatan</h3></div><div class="card-body bars">${byDept.map(([c, n, cost]) => `<div class="bar-row"><span><b>${esc(c)}</b><span class="d-amt">${fmtRM(cost)} lulus</span></span><div class="bar-track"><div class="bar-fill" style="width:${n / maxD * 100}%"></div></div><span class="v">${n}</span></div>`).join('')}</div></div>
         <div class="card"><div class="card-head"><h3>Mengikut status</h3></div><div class="card-body bars">${byStatus.map(([c, l, n]) => `<div class="bar-row"><span>${esc(l)}</span><div class="bar-track"><div class="bar-fill" style="width:${n / maxS * 100}%;background:${statusColor[c]}"></div></div><span class="v">${n}</span></div>`).join('')}</div></div>
       </div>
       <div class="card" style="margin-top:16px"><div class="card-head"><h3>Permohonan dihantar mengikut bulan</h3></div><div class="card-body"><div class="cols">${months.map(([m, n]) => `<div class="c"><span class="n">${n || ''}</span><div class="b" style="height:${n / maxM * 100}%"></div><span class="l">${m}</span></div>`).join('')}</div></div></div>`);
@@ -1212,12 +1262,12 @@
       ${hero(`${roleName('ADMIN')} · Urus pengguna, senarai pilihan, tetapan dan emel`,
         [['p-draft', `Mod emel: ${S('EMAIL_MODE')}`, '#/admin/settings'], [S('CGEE_ENABLED') === 'YA' ? 'p-ok' : 'p-amend', `CGEE: ${S('CGEE_ENABLED') || 'TIDAK'}`, '#/admin/settings'], ['p-sub', `${d.users.length} pengguna`, '#/admin/users']],
         `<a class="btn btn-gold" href="#/admin/settings">${ic('sliders')} Tetapan</a>`)}
-      <div class="callout ${S('EMAIL_MODE') === 'LIVE' ? 'ok' : 'warn'}" style="margin-bottom:16px">${ic('mail')}<div class="body">Mod emel: <b>${esc(S('EMAIL_MODE'))}</b> — ${{ OFF: 'emel hanya direkod dalam log, tiada emel dihantar (fasa ujian).', TEST: 'semua emel dihantar ke ' + esc(S('TEST_EMAIL_TO')) + ' sahaja.', LIVE: 'emel dihantar kepada penerima sebenar.' }[S('EMAIL_MODE')]} <a href="#/admin/settings">Tukar</a></div></div>
+      <div class="callout ${S('EMAIL_MODE') === 'LIVE' ? 'ok' : 'warn'}" style="margin-bottom:16px">${ic('mail')}<div class="body">Mod emel: <b>${esc(S('EMAIL_MODE'))}</b> — ${{ OFF: 'emel hanya direkod dalam log, tiada emel dihantar (fasa ujian).', TEST: 'semua emel dihantar ke ' + esc(S('TEST_EMAIL_TO')) + ' sahaja.', LIVE: 'emel dihantar kepada penerima sebenar.' }[S('EMAIL_MODE')]}<div style="margin-top:8px"><a class="btn btn-sm" href="#/admin/settings">${ic('sliders')} Tukar mod emel</a></div></div></div>
       <div class="kpis">
-        ${kpi('Pengguna', d.users.length, d.user_roles.filter(r => r.role_code === 'REVIEWER' && r.is_active).length + ' penyemak', 'c-sub', 'users')}
-        ${kpi('Permohonan', d.applications.filter(a => !a.is_deleted).length, 'termasuk draf', 'c-draft', 'file')}
-        ${kpi('Emel dalam log', d.email_log.length, d.email_log.filter(e => e.send_status === 'LOGGED').length + ' tidak dihantar (OFF)', 'c-gold', 'mail')}
-        ${kpi('Surat kelulusan', d.approval_letters.length, 'dijana', 'c-ok', 'check')}
+        ${kpi('Pengguna', d.users.length, d.user_roles.filter(r => r.role_code === 'REVIEWER' && r.is_active).length + ' penyemak', 'c-sub', 'users', false, '#/admin/users')}
+        ${kpi('Permohonan', d.applications.filter(a => !a.is_deleted).length, 'termasuk draf', 'c-draft', 'file', false, '#/reports')}
+        ${kpi('Emel dalam log', d.email_log.length, d.email_log.filter(e => e.send_status === 'LOGGED').length + ' tidak dihantar (OFF)', 'c-gold', 'mail', false, '#/admin/emails')}
+        ${kpi('Surat kelulusan', d.approval_letters.length, 'dijana', 'c-ok', 'check', false, '#/reports')}
       </div>
       <div class="grid-2" style="gap:16px">${[['#/admin/users', 'users', 'Pengguna & Peranan', 'Tambah penyemak, pentadbir atau pemerhati.'], ['#/admin/lists', 'list', 'Senarai Pilihan', 'Jabatan dan pilihan dropdown.'], ['#/admin/settings', 'sliders', 'Tetapan', 'Suis emel, emel CGEE, rujukan surat, had jam.'], ['#/admin/emails', 'mail', 'Log Emel', 'Semua emel yang dijana oleh sistem.']]
         .map(([h, i, t, s]) => `<a class="role-card" href="${h}" style="text-decoration:none"><div class="ri">${ic(i)}</div><h3>${t}</h3><p class="small muted" style="margin-top:6px">${s}</p></a>`).join('')}</div>`);
@@ -1228,10 +1278,10 @@
     const ROLE_COLS = ['REVIEWER', 'ADMIN', 'VIEWER'];
     shell('Pengguna & Peranan', `
       <div class="page-head"><div><h1>Pengguna & Peranan</h1><p class="muted">Semua staf @unimap.edu.my menjadi <b>Pemohon</b> secara automatik selepas log masuk pertama.</p></div><button class="btn btn-primary" id="add">${ic('plus')} Tambah pengguna</button></div>
-      <div class="card"><div class="table-wrap"><table><thead><tr><th>Pengguna</th><th>Jabatan</th>${ROLE_COLS.map(r => `<th>${esc(roleName(r))}</th>`).join('')}<th>Aktif</th></tr></thead><tbody>
-        ${d.users.map(u => { const rs = rolesOf(u.user_id); return `<tr><td><b>${esc(u.full_name)}</b><div class="small muted">${esc(u.email)}</div></td><td>${esc(deptCode(u.department_id))}</td>
-          ${ROLE_COLS.map(r => `<td><input type="checkbox" data-u="${u.user_id}" data-r="${r}" ${rs.includes(r) ? 'checked' : ''} ${u.user_id === session.user_id && r === 'ADMIN' ? 'disabled title="Tidak boleh buang peranan sendiri"' : ''} aria-label="${r}"></td>`).join('')}
-          <td><input type="checkbox" data-active="${u.user_id}" ${u.is_active ? 'checked' : ''} ${u.user_id === session.user_id ? 'disabled' : ''} aria-label="Aktif"></td></tr>`; }).join('')}
+      <div class="card"><div class="table-wrap"><table class="users-table"><thead><tr><th>Pengguna</th><th>Jabatan</th>${ROLE_COLS.map(r => `<th>${esc(roleName(r))}</th>`).join('')}<th>Aktif</th></tr></thead><tbody>
+        ${d.users.map(u => { const rs = rolesOf(u.user_id); return `<tr><td class="u-name"><b>${esc(u.full_name)}</b><div class="small muted">${esc(u.email)}</div></td><td class="u-dept" data-label="Jabatan">${esc(deptCode(u.department_id))}</td>
+          ${ROLE_COLS.map(r => `<td><label class="cb"><input type="checkbox" data-u="${u.user_id}" data-r="${r}" ${rs.includes(r) ? 'checked' : ''} ${u.user_id === session.user_id && r === 'ADMIN' ? 'disabled title="Tidak boleh buang peranan sendiri"' : ''} aria-label="${esc(roleName(r))}"><span class="cb-l">${esc(roleName(r))}</span></label></td>`).join('')}
+          <td><label class="cb"><input type="checkbox" data-active="${u.user_id}" ${u.is_active ? 'checked' : ''} ${u.user_id === session.user_id ? 'disabled' : ''} aria-label="Aktif"><span class="cb-l">Aktif</span></label></td></tr>`; }).join('')}
       </tbody></table></div></div>`);
     $$('[data-r]').forEach(cb => cb.onchange = async () => {
       const { u, r } = cb.dataset;
@@ -1272,16 +1322,25 @@
   }, { roles: ['ADMIN'] });
 
   route('/admin/settings', () => {
-    const keys = [['CGEE_EMAIL', 'Emel CGEE'], ['CGEE_NAME', 'Nama CGEE (paparan)'], ['TEST_EMAIL_TO', 'Penerima emel mod TEST'], ['LETTER_REF_PREFIX', 'Awalan rujukan surat'], ['APP_REF_PREFIX', 'Awalan rujukan permohonan'], ['DEFAULT_RATE_PER_HOUR', 'Kadar RM sejam'], ['MAX_HOURS_WEEK_SEMESTER', 'Had jam/minggu (semester)'], ['MAX_HOURS_WEEK_BREAK', 'Had jam/minggu (cuti)'], ['MIN_CGPA', 'PNGK minimum pelajar'], ['MAX_UPLOAD_MB', 'Saiz maks fail (MB)'], ['SIGNATORY_NAME', 'Nama penandatangan surat'], ['SIGNATORY_TITLE', 'Jawatan penandatangan'], ['GOOGLE_SITE_URL', 'Pautan Google Site']];
+    // [key, label, number limits [min, max, step] or null, hint]
+    const groups = [
+      ['Emel & CGEE', [['CGEE_EMAIL', 'Emel CGEE', null, '', 'email'], ['CGEE_NAME', 'Nama CGEE (paparan)'], ['TEST_EMAIL_TO', 'Penerima emel mod TEST', null, '', 'email']]],
+      ['Tempoh & had JoC', [['MIN_NOTICE_DAYS', 'Notis minimum sebelum tarikh mula', [0, 60, 1], 'Hari kalendar. Peringatan sahaja — permohonan tidak disekat.'], ['DEFAULT_RATE_PER_HOUR', 'Kadar bayaran (RM sejam)', [0, 100, 0.01]], ['MAX_HOURS_WEEK_SEMESTER', 'Had jam seminggu (semester)', [1, 60, 1]], ['MAX_HOURS_WEEK_BREAK', 'Had jam seminggu (cuti semester)', [1, 60, 1]], ['MIN_CGPA', 'PNGK minimum pelajar', [0, 4, 0.01]], ['MAX_UPLOAD_MB', 'Saiz maksimum fail (MB)', [1, 25, 1]]]],
+      ['Rujukan & surat kelulusan', [['APP_REF_PREFIX', 'Awalan rujukan permohonan', null, 'cth. JOC-FKTEN → JOC-FKTEN-2026-0001'], ['LETTER_REF_PREFIX', 'Awalan rujukan surat', null, 'cth. UniMAP/FKTEN/HEPA/JOC → …/2026/001'], ['SIGNATORY_NAME', 'Nama penandatangan surat'], ['SIGNATORY_TITLE', 'Jawatan penandatangan']]],
+      ['Pautan & data', [['GOOGLE_SITE_URL', 'Pautan Google Site', null, '', 'url'], ['STAFF_MASTER_SHEET_ID', 'ID Google Sheet Senarai Staf FKTEN', null, 'Profil staf baharu diisi daripada senarai ini.']]],
+    ];
+    const field = ([k, l, num, hint, type]) => `<label class="field"><span>${l}</span>${num
+      ? `<input name="${k}" type="number" inputmode="decimal" min="${num[0]}" max="${num[1]}" step="${num[2]}" value="${esc(S(k))}" data-label="${esc(l)}">`
+      : `<input name="${k}" type="${type || 'text'}" value="${esc(S(k))}" data-label="${esc(l)}">`}${hint || num ? `<div class="hint">${hint ? esc(hint) + ' ' : ''}${num ? `Julat ${num[0]}–${num[1]}.` : ''}</div>` : ''}</label>`;
     shell('Tetapan', `
       <div class="page-head"><div><h1>Tetapan Sistem</h1><p class="muted">Perubahan direkod dalam log audit.</p></div></div>
-      <div class="callout info" style="margin-bottom:16px">${ic('mail')}<div class="body"><b>Siapa menerima emel:</b> permohonan baharu / dihantar semula → <b>semua Penyemak</b>. Pindaan / Tolak → pemohon (s.k. semua Penyemak). Lulus → pemohon (s.k. semua Penyemak) dan <b>CGEE</b> (hanya jika suis CGEE = YA). Senarai Penyemak diambil daripada <a href="#/admin/users">Pengguna &amp; Peranan</a>.</div></div>
+      <div class="callout info" style="margin-bottom:16px">${ic('mail')}<div class="body"><b>Siapa menerima emel:</b> permohonan baharu / dihantar semula → <b>semua Penyemak</b>. Pindaan / Tolak → pemohon (s.k. semua Penyemak). Lulus → pemohon (s.k. semua Penyemak) dan <b>CGEE</b> (hanya jika suis CGEE = YA). Senarai Penyemak diambil daripada Pengguna &amp; Peranan.<div style="margin-top:8px"><a class="btn btn-sm" href="#/admin/users">${ic('users')} Buka Pengguna &amp; Peranan</a></div></div></div>
       <div class="card card-pad" style="margin-bottom:16px"><h3>Suis emel</h3><p class="small muted" style="margin:4px 0 12px">OFF = rekod sahaja · TEST = hantar semua ke penerima ujian · LIVE = hantar kepada penerima sebenar (CGEE ikut suis di bawah)</p>
         <div class="seg" id="seg">${['OFF', 'TEST', 'LIVE'].map(m => `<button data-mode="${m}" class="${S('EMAIL_MODE') === m ? 'on' : ''}">${m}</button>`).join('')}</div></div>
       <div class="card card-pad" style="margin-bottom:16px"><h3>Hantar kepada CGEE</h3><p class="small muted" style="margin:4px 0 12px">TIDAK = emel kelulusan kepada CGEE hanya direkod dalam log (untuk ujian dengan pemohon &amp; TD HEPA). YA = CGEE menerima emel kelulusan (apabila mod emel TEST/LIVE).</p>
         <div class="seg">${['TIDAK', 'YA'].map(m => `<button data-cgee="${m}" class="${(S('CGEE_ENABLED') || 'TIDAK') === m ? 'on' : ''}">${m}</button>`).join('')}</div></div>
-      <div class="card"><form class="card-body" id="sf"><div class="grid-2">${keys.map(([k, l]) => `<label class="field"><span>${l}</span><input name="${k}" value="${esc(S(k))}"></label>`).join('')}</div>
-        <div class="row end"><button class="btn btn-primary" id="save">${ic('save')} Simpan tetapan</button></div></form></div>`);
+      <form id="sf" novalidate>${groups.map(([t, list]) => `<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>${t}</h3></div><div class="card-body"><div class="grid-2">${list.map(field).join('')}</div></div></div>`).join('')}
+        <div class="row end"><button class="btn btn-primary" id="save">${ic('save')} Simpan tetapan</button></div></form>`);
     $$('[data-mode]').forEach(b => b.onclick = async () => {
       const m = b.dataset.mode;
       const cgeeOn = S('CGEE_ENABLED') === 'YA';
@@ -1295,8 +1354,15 @@
       if (!apply(await act(b, () => call(API.saveSettings({ CGEE_ENABLED: v }))))) return;
       toast('Hantar kepada CGEE: ' + v); render();
     });
+    $$('#sf input').forEach(i => i.addEventListener('input', () => i.closest('.field').classList.remove('error')));
     $('#save').onclick = async (e) => {
       e.preventDefault();
+      const bad = $$('#sf input').find(i => !i.checkValidity() || (i.type === 'number' && i.value.trim() === ''));
+      if (bad) {
+        bad.closest('.field').classList.add('error'); bad.focus();
+        return toast(bad.type === 'number' ? `${bad.dataset.label}: masukkan nombor antara ${bad.min} dan ${bad.max}` : `${bad.dataset.label}: format tidak sah`, 'err');
+      }
+      $$('#sf .field.error').forEach(f => f.classList.remove('error'));
       const values = {}; $$('#sf input').forEach(i => { values[i.name] = i.value.trim(); });
       if (apply(await act($('#save'), () => call(API.saveSettings(values))))) toast('Tetapan disimpan');
     };
@@ -1316,7 +1382,8 @@
     const u = me();
     const first = params.get('first') === '1';
     shell('Profil Saya', `
-      <div class="page-head"><div><h1>${first ? 'Lengkapkan profil anda' : 'Profil Saya'}</h1><p class="muted">${first ? 'Maklumat ini digunakan dalam permohonan dan surat kelulusan. Anda hanya perlu isi sekali.' : 'Nama dan emel diambil daripada akaun Google UniMAP anda.'}</p></div></div>
+      <div class="page-head"><div><h1>${first ? 'Semak profil anda' : 'Profil Saya'}</h1><p class="muted">${first ? 'Maklumat ini digunakan dalam permohonan dan surat kelulusan.' : 'Nama dan emel diambil daripada akaun Google UniMAP anda.'}</p></div></div>
+      ${first ? (u.department_id ? `<div class="callout info" style="max-width:720px;margin-bottom:16px">${ic('users')}<div class="body">Maklumat di bawah diambil daripada <b>Senarai Staf FKTEN</b>. Semak dan klik <b>Simpan</b>. Jika ada yang salah, betulkan di sini dan maklumkan kepada pentadbir supaya senarai staf dikemas kini.</div></div>` : `<div class="callout warn" style="max-width:720px;margin-bottom:16px">${ic('alert')}<div class="body">Emel anda tiada dalam Senarai Staf FKTEN. Sila isi maklumat di bawah.</div></div>`) : ''}
       <div class="card" style="max-width:720px"><form class="card-body" id="pf">
         <div class="grid-2"><label class="field"><span>Nama penuh</span><input name="full_name" value="${esc(u.full_name)}"></label><label class="field"><span>Emel</span><input value="${esc(u.email)}" readonly></label></div>
         <div class="grid-2"><label class="field"><span>Jabatan / unit <span class="req">*</span></span><select name="department_id"><option value="">Pilih...</option>${D().departments.filter(x => x.is_active).map(x => `<option value="${x.department_id}" ${x.department_id === u.department_id ? 'selected' : ''}>${esc(x.code)} – ${esc(x.name)}</option>`).join('')}</select></label>
@@ -1343,7 +1410,7 @@
     busy(false);
     if (res && res.error) return accessDenied(res.error, res.email);
     STATE = res.state;
-    if (res.userId) return enter(res.state, res.userId, res.open);
+    if (res.userId) return enter(res.state, res.userId, res.open, res.firstLogin);
     render(); // mock: landing page with the demo account chooser
   })();
 

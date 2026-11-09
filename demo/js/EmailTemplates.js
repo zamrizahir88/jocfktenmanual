@@ -46,7 +46,14 @@ function jocEmail_(kind, d) {
       chip: ['DILULUSKAN', '#15803d', '#dff6e8'],
       title: 'Tahniah! Permohonan JOC anda diluluskan',
       intro: 'Permohonan anda telah diluluskan di peringkat Fakulti Kejuruteraan & Teknologi Elektronik (FKTEN).',
-      note: ['Langkah seterusnya', 'Daftar tawaran latihan di portal MySISWA@JoC (joc.mohe.gov.my) menggunakan maklumat yang diluluskan. Muat turun fail CSV dan surat kelulusan daripada sistem.', '#15803d', '#effbf3'],
+      note: ['Langkah seterusnya di portal MySISWA@JoC', [
+        '1. Log masuk ke portal MySISWA@JoC (joc.mohe.gov.my).',
+        '2. Pergi ke Penempatan Latihan → Tawaran Latihan → + Tambah Tawaran Latihan.',
+        '3. Isi tawaran menggunakan maklumat yang diluluskan (muat turun fail CSV daripada sistem ini — susunannya sama seperti borang JoC).',
+        '4. Lampirkan surat kelulusan fakulti (dilampirkan bersama emel ini) jika diminta.',
+        '5. Isi butiran pelajar terus di portal JoC.',
+        '6. CGEE akan menyemak tawaran anda di peringkat universiti.',
+      ].join('\n'), '#15803d', '#effbf3'],
       button: 'Lihat surat kelulusan',
     },
     APPROVED_TO_CGEE: {

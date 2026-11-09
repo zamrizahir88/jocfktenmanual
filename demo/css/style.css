@@ -320,6 +320,13 @@ a.logomark:hover::after { animation-duration: 1.2s; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 20px; }
 .kpi { padding: 16px 18px; position: relative; overflow: hidden; transition: transform .15s; }
 .kpi:hover { transform: translateY(-2px); }
+/* stat cards that open a list */
+a.kpi-link { color: inherit; text-decoration: none; cursor: pointer; }
+a.kpi-link:hover { border-color: var(--kc, var(--primary)); box-shadow: 0 6px 18px rgba(14, 34, 98, .10); }
+a.kpi-link:focus-visible { outline: 2px solid var(--kc, var(--primary)); outline-offset: 2px; }
+.kpi .k-go { float: right; opacity: .45; transition: opacity .15s, transform .15s; }
+.kpi .k-go .icon { width: 15px; height: 15px; }
+a.kpi-link:hover .k-go { opacity: 1; transform: translateX(2px); }
 .kpi::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--kc, var(--primary)); }
 .kpi .k-ic { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--kcs, var(--primary-soft)); color: var(--kc, var(--primary)); margin-bottom: 10px; }
 .kpi.c-draft { --kc: var(--st-draft); --kcs: var(--st-draft-bg); }
@@ -347,7 +354,7 @@ a.logomark:hover::after { animation-duration: 1.2s; }
 /* application list */
 .app-list { display: flex; flex-direction: column; }
 .app-item {
-  display: grid; grid-template-columns: 1fr auto; gap: 6px 16px; padding: 16px 20px; border-top: 1px solid var(--border);
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; padding: 16px 20px; border-top: 1px solid var(--border);
   position: relative; box-shadow: inset 4px 0 0 var(--strip, transparent);
   text-decoration: none; color: inherit; align-items: center;
 }
@@ -390,8 +397,30 @@ a.logomark:hover::after { animation-duration: 1.2s; }
 .pill { display: inline-flex; align-items: center; gap: 7px; font-size: .78rem; font-weight: 700; padding: 6px 11px; border-radius: 99px; background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .2); color: #fff; text-decoration: none; }
 .pill i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: #fff; }
 .pill.p-amend i { background: #f7bf5a; } .pill.p-sub i { background: #8fb2ff; } .pill.p-ok i { background: #6ee39f; } .pill.p-rej i { background: #ff9c9c; } .pill.p-draft i { background: #c3cce0; }
-.app-item .t { font-weight: 650; }
+.app-item .t { font-weight: 650; overflow-wrap: anywhere; }
+.app-item > div:first-child { min-width: 0; }
 .app-item .meta { display: flex; gap: 6px 14px; flex-wrap: wrap; font-size: .82rem; color: var(--muted); }
+/* reviewer-list chips: who is reviewing, overdue (LEWAT), short notice (SEGERA) */
+.app-item .meta .chip { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; letter-spacing: .02em; }
+.chip .icon { width: 12px; height: 12px; }
+.chip-late { background: var(--st-rej-bg); color: var(--st-rej); }
+.chip-urgent { background: var(--st-amend-bg); color: var(--st-amend); }
+.chip-claim { background: var(--st-sub-bg); color: var(--st-sub); }
+.chip-free { background: var(--st-draft-bg); color: var(--st-draft); }
+.next-steps { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.step-now { display: none; margin: -10px 0 16px; font-size: .9rem; color: var(--muted); }
+.step-now b { color: var(--text); }
+.cols .c { min-width: 0; }
+.bar-row .d-amt { display: block; font-size: .78rem; color: var(--muted); font-weight: 400; }
+.users-table .cb { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.users-table .cb input { width: 18px; height: 18px; }
+.users-table .cb-l { display: none; font-size: .88rem; }
+/* TD HEPA comment under Ditolak / Perlu pindaan items */
+.app-item .meta .reason { flex-basis: 100%; min-width: 0; font-size: .8rem; line-height: 1.45; padding: 5px 10px; border-radius: 8px; border-left: 3px solid; overflow-wrap: anywhere; }
+/* clamp on the inner text so the padding never shows part of a third line */
+.reason-t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.reason.rej { background: var(--st-rej-bg); border-color: var(--st-rej); color: var(--text); }
+.reason.amend { background: var(--st-amend-bg); border-color: var(--st-amend); color: var(--text); }
 .app-item .right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
 .empty .icon { width: 40px; height: 40px; opacity: .5; margin-bottom: 8px; }
@@ -467,7 +496,10 @@ td input { min-height: 36px; padding: 6px 8px; }
 .stu-table td:nth-child(4) input { min-width: 160px; }
 
 /* detail */
-.detail-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+.detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+/* decided application: the decision is shown above the details on narrow screens, beside them on wide screens */
+.decision-top { display: none; margin-bottom: 16px; }
+@media (max-width: 1024px) { .decision-top { display: block; } .decision-side { display: none; } }
 .dl { display: grid; grid-template-columns: 190px 1fr; gap: 10px 16px; font-size: .92rem; margin: 0; }
 .dl dt { color: var(--muted); font-weight: 600; }
 .dl dd { margin: 0; word-break: break-word; }
@@ -546,7 +578,7 @@ td input { min-height: 36px; padding: 6px 8px; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 1024px) {
-  .detail-grid { grid-template-columns: 1fr; }
+  .detail-grid { grid-template-columns: minmax(0, 1fr); }
   .rules { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 860px) {
@@ -571,12 +603,32 @@ td input { min-height: 36px; padding: 6px 8px; }
   .rules { grid-template-columns: 1fr 1fr; }
   .dl { grid-template-columns: 1fr; gap: 2px; }
   .dl dd { margin-bottom: 10px; }
-  .app-item { grid-template-columns: 1fr; padding: 14px 16px; }
+  .app-item { grid-template-columns: minmax(0, 1fr); padding: 14px 16px; }
   .app-item .right { flex-direction: row; align-items: center; justify-content: space-between; }
   .topbar:has(.role-switch) .page-title { display: none; }
   .topbar .role-switch { margin-left: auto; }
   .role-switch select { max-width: 170px; font-size: .85rem; }
-  .bar-row { grid-template-columns: 100px 1fr 44px; }
+  .bar-row { grid-template-columns: 96px minmax(0, 1fr) 36px; }
+  /* tabs wrap instead of hiding the last ones off-screen */
+  .tabs { flex-wrap: wrap; overflow: visible; }
+  .tabs button { padding: 8px 12px; }
+  /* monthly chart: 12 columns must fit the card */
+  .cols { gap: 3px; }
+  .cols .c .l { font-size: .64rem; }
+  /* current step name (the stepper only shows numbers on phones) */
+  .step-now { display: block; }
+  /* links inside sentences get a taller tap area without changing the layout */
+  .callout a:not(.btn), .content p a:not(.btn) { padding-block: 7px; }
+  /* users & roles: one card per user */
+  .users-table thead { display: none; }
+  .users-table, .users-table tbody { display: block; }
+  .users-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .users-table td { border: 0; padding: 0; }
+  .users-table td.u-name { grid-column: 1 / -1; margin-bottom: 4px; }
+  .users-table td.u-dept { grid-column: 1 / -1; font-size: .85rem; }
+  .users-table td.u-dept::before { content: attr(data-label) ': '; color: var(--muted); }
+  .users-table .cb { min-height: 40px; }
+  .users-table .cb-l { display: inline; }
   .letter { padding: 20px 16px; font-size: 12.5px; }
   .card-pad, .card-body { padding: 16px; }
   .card-head { padding: 14px 16px; }
