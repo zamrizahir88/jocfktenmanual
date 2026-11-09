@@ -13,7 +13,7 @@
   const LOGO = window.LOGO_SRC || 'assets/unimap_logo.png';
   const FACULTY = 'Fakulti Kejuruteraan & Teknologi Elektronik (FKTEN)';
   const CLAIM_HOURS = 24; // same as Api.js: a "Saya semak" claim lapses after this
-  const SLA_DAYS = 3;     // working days TD HEPA aims to review within
+  const SLA_DAYS = 3;     // working days the Jawatankuasa Penyemak aims to review within
   try { localStorage.removeItem('joc_hide_info'); } catch (e) {} // old "don't show again" choice: the page now always shows
   // Built by concatenation: Apps Script drops everything after a double slash inside template strings.
   const JOC_PORTAL = 'https:' + '/' + '/joc.mohe.gov.my';
@@ -217,7 +217,7 @@
   /** Calendar days between first submission (or today for drafts) and the start date. */
   const noticeGiven = (a) => a.start_date ? daysBetween(a.first_submitted_at || TODAY(), a.start_date) : null;
   const isUrgent = (a) => { const n = noticeGiven(a); return n !== null && n < minNotice(); };
-  /** Latest TD HEPA comment for Ditolak / Perlu pindaan, shown under the item in lists. */
+  /** Latest Jawatankuasa Penyemak comment for Ditolak / Perlu pindaan, shown under the item in lists. */
   function decisionNote(a) {
     if (a.status_code !== 'REJECTED' && a.status_code !== 'AMEND_REQUIRED') return '';
     const r = reviewsOf(a.application_id).filter(x => x.decision_code === (a.status_code === 'REJECTED' ? 'REJECT' : 'AMEND')).pop();
@@ -436,7 +436,7 @@
             <span class="eyebrow">MySISWA Job on Campus</span>
             <h1>Sistem Permohonan JOC</h1>
             <div class="faculty">${FACULTY}</div>
-            <p class="lead">Saringan permohonan Job on Campus di peringkat fakulti. Hantar butiran program dan bukti kelulusan di sini dahulu; setelah diluluskan oleh TD HEPA, teruskan permohonan di portal MySISWA@JoC KPT.</p>
+            <p class="lead">Saringan permohonan Job on Campus di peringkat fakulti. Hantar butiran program dan bukti kelulusan di sini dahulu; setelah diluluskan oleh fakulti, teruskan permohonan di portal MySISWA@JoC KPT.</p>
             <div class="cta-row">
               <button class="btn btn-primary btn-lg" id="login">${ic('user')} Log masuk dengan akaun UniMAP</button>
               <a class="btn btn-lg" href="${esc(S('GOOGLE_SITE_URL'))}" target="_blank" rel="noopener">${ic('info')} Tentang JOC</a>
@@ -446,7 +446,7 @@
           <div class="steps-card">
             <h3>Bagaimana ia berfungsi</h3>
             ${[['Mohon di sistem ini', 'Isi butiran program JOC dan lampirkan bukti kelulusan (kertas kerja / emel).'],
-               ['Semakan TD HEPA', 'Disemak dalam 3 hari bekerja. Keputusan: Lulus, Pindaan atau Tolak — anda dimaklumkan melalui emel.'],
+               ['Semakan Jawatankuasa Penyemak', 'Disemak dalam 3 hari bekerja. Keputusan: Lulus, Pindaan atau Tolak — anda dimaklumkan melalui emel.'],
                ['Surat kelulusan', 'Jika lulus, surat kelulusan fakulti dihantar kepada anda dan CGEE.'],
                ['Daftar di portal JoC', 'Daftar tawaran latihan di joc.mohe.gov.my menggunakan maklumat yang telah diluluskan.']]
               .map(([t, d], i) => `<div class="step-line"><div class="step-num">${i + 1}</div><div><b>${t}</b><p class="small muted">${d}</p></div></div>`).join('')}
@@ -556,7 +556,7 @@
       ${hero(`${deptName(user.department_id)} · ${roleName('APPLICANT')}`,
         [nAmend ? ['p-amend', `${nAmend} perlu pindaan`, '#/my'] : null, ['p-sub', `${nPend} dalam semakan`, '#/my'], ['p-ok', `${nOk} lulus`, '#/my']].filter(Boolean),
         `<a class="btn btn-gold" href="#/apply">${ic('plus')} Permohonan Baharu</a>`)}
-      ${amend.map(a => `<div class="callout warn" style="margin-bottom:14px">${ic('alert')}<div class="body"><b>Pindaan diperlukan:</b> ${esc(a.programme_name)} (${esc(a.ref_no)}). <a href="#/app/${a.application_id}">Lihat ulasan TD HEPA →</a></div></div>`).join('')}
+      ${amend.map(a => `<div class="callout warn" style="margin-bottom:14px">${ic('alert')}<div class="body"><b>Pindaan diperlukan:</b> ${esc(a.programme_name)} (${esc(a.ref_no)}). <a href="#/app/${a.application_id}">Lihat ulasan Jawatankuasa Penyemak →</a></div></div>`).join('')}
       <div class="kpis">
         ${kpi('Draf', cnt(a => a.status_code === 'DRAFT'), 'belum dihantar', 'c-draft', 'file', false, '#/my?s=DRAFT')}
         ${kpi('Dalam semakan', nPend, 'menunggu penyemak', 'c-sub', 'clock', false, '#/my?s=pending')}
@@ -602,7 +602,7 @@
           <p class="small muted" style="margin-top:4px">*Tertakluk kepada syarat UniMAP / CGEE yang terkini.</p></div>
       </div>
       <div class="card card-pad"><h3>Proses di FKTEN</h3>
-        <div class="grid-2" style="margin-top:6px">${[['Mohon di sistem ini', 'Butiran program + bukti kelulusan.'], ['Semakan TD HEPA', 'Lulus / Pindaan / Tolak.'], ['Surat kelulusan', 'Dihantar kepada anda & CGEE.'], ['Daftar di portal JoC', 'joc.mohe.gov.my — rujuk Manual Majikan.']]
+        <div class="grid-2" style="margin-top:6px">${[['Mohon di sistem ini', 'Butiran program + bukti kelulusan.'], ['Semakan Jawatankuasa Penyemak', 'Lulus / Pindaan / Tolak.'], ['Surat kelulusan', 'Dihantar kepada anda & CGEE.'], ['Daftar di portal JoC', 'joc.mohe.gov.my — rujuk Manual Majikan.']]
           .map(([t, d], i) => `<div class="step-line" style="border-top:0"><div class="step-num">${i + 1}</div><div><b>${t}</b><p class="small muted">${d}</p></div></div>`).join('')}</div>
       </div>
       ${forApply ? `<div class="card card-pad"><h3>Sediakan sebelum mula</h3><ul class="checklist" style="margin-top:12px">
@@ -753,7 +753,7 @@
       const allErr = [1, 2, 3].map(s => [s, Object.keys(validateStep(a, s)).length]).filter(x => x[1]);
       body = `<div class="callout warn" style="margin-bottom:16px">${ic('alert')}<div class="body"><b>Permohonan BELUM DIHANTAR.</b> Semak ringkasan di bawah, tandakan perakuan, kemudian tekan <b>${a.status_code === 'AMEND_REQUIRED' ? 'Hantar semula' : 'Hantar permohonan'}</b> di bahagian bawah.</div></div>
         <h2 style="margin-bottom:4px">Ringkasan permohonan <span class="tag">DRAF</span></h2>
-        <p class="small muted" style="margin-bottom:16px">Ini paparan semakan sahaja — belum dihantar kepada TD HEPA.</p>
+        <p class="small muted" style="margin-bottom:16px">Ini paparan semakan sahaja — belum dihantar untuk semakan.</p>
         ${allErr.length ? `<div class="callout err" style="margin-bottom:16px">${ic('alert')}<div class="body">Masih ada maklumat yang belum lengkap. Lengkapkan dahulu:<div class="row" style="margin-top:8px">${allErr.map(([s]) => `<a class="btn btn-sm" href="#/form/${a.application_id}?step=${s}">${ic('edit')} Langkah ${s}: ${STEPS[s - 1]}</a>`).join('')}</div></div></div>` : ''}
         ${noticeWarning(a)}
         ${appSummary(a, null)}
@@ -766,7 +766,7 @@
     shell(resub ? `Pindaan ${a.ref_no}` : 'Permohonan Baharu', `
       <div class="page-head"><div><h1>${resub ? 'Pinda permohonan' : 'Permohonan JOC baharu'}</h1><p class="muted">${esc(a.ref_no || 'Draf ' + a.application_id)} · <span id="save-ind">disimpan secara automatik</span></p></div>
         <a class="btn btn-sm" href="#/app/${a.application_id}">${ic('eye')} Lihat ringkasan</a></div>
-      ${resub && lastReview ? `<div class="callout warn" style="margin-bottom:16px">${ic('edit')}<div class="body"><b>Ulasan TD HEPA (${fmtDate(lastReview.decided_at)}):</b> ${esc(lastReview.comments)}</div></div>` : ''}
+      ${resub && lastReview ? `<div class="callout warn" style="margin-bottom:16px">${ic('edit')}<div class="body"><b>Ulasan Jawatankuasa Penyemak (${fmtDate(lastReview.decided_at)}):</b> ${esc(lastReview.comments)}</div></div>` : ''}
       ${stepper}
       <div class="card"><form class="card-body" id="wf" novalidate>${body}</form>
         <div class="wizard-foot ${step === LAST ? 'final' : ''}">
@@ -780,7 +780,7 @@
     const cost = (Number(a.num_students) || 0) * (Number(a.hours_per_student) || 0) * Number(a.rate_per_hour);
     return `<div class="cost-box"><div><div class="small muted">Anggaran kos keseluruhan</div><div class="amt">${fmtRM(cost)}</div><div class="small muted">${a.num_students || 0} pelajar × ${a.hours_per_student || 0} jam × RM${Number(a.rate_per_hour).toFixed(2)}</div></div>
       ${wc ? `<div style="text-align:right"><div class="small muted">Purata seminggu (${wc.weeks.toFixed(1)} minggu)</div><div style="font-weight:800;font-size:1.15rem;color:${wc.over ? '#dc2626' : 'var(--st-ok)'}">${wc.perWeek.toFixed(1)} jam</div><div class="small muted">had ${wc.limit} jam</div></div>` : ''}</div>
-      ${wc && wc.over ? `<div class="callout warn" style="margin-bottom:14px">${ic('alert')}<div class="body">Purata <b>${wc.perWeek.toFixed(1)} jam seminggu</b> melebihi had <b>${wc.limit} jam</b> bagi ${esc(label('PERIOD_TYPE', a.period_type_code)).toLowerCase()}. Kurangkan jumlah jam atau panjangkan tempoh. (Anda masih boleh menghantar, tetapi TD HEPA mungkin meminta pindaan.)</div></div>` : ''}`;
+      ${wc && wc.over ? `<div class="callout warn" style="margin-bottom:14px">${ic('alert')}<div class="body">Purata <b>${wc.perWeek.toFixed(1)} jam seminggu</b> melebihi had <b>${wc.limit} jam</b> bagi ${esc(label('PERIOD_TYPE', a.period_type_code)).toLowerCase()}. Kurangkan jumlah jam atau panjangkan tempoh. (Anda masih boleh menghantar, tetapi Jawatankuasa Penyemak mungkin meminta pindaan.)</div></div>` : ''}`;
   }
 
   function readForm(a) {
@@ -881,7 +881,7 @@
         for (const s of [1, 2, 3]) { const errs = validateStep(a, s); if (Object.keys(errs).length) { toast(`Langkah ${s} belum lengkap`, 'err'); return go(`#/form/${a.application_id}?step=${s}`); } }
         const errs = validateStep(a, LAST); if (Object.keys(errs).length) return renderStep(a, LAST, errs);
         const resub = a.status_code === 'AMEND_REQUIRED';
-        if (!await confirmBox(resub ? 'Hantar semula permohonan?' : 'Hantar permohonan?', `<p>Permohonan akan dihantar kepada TD HEPA untuk semakan (dalam ${SLA_DAYS} hari bekerja). Anda tidak boleh menyunting sehingga keputusan dibuat.</p>${isUrgent(a) ? `<p class="small" style="margin-top:8px;color:var(--st-amend)"><b>Permohonan segera:</b> tarikh mula kurang daripada ${minNotice()} hari — tiada jaminan kelulusan sebelum tarikh mula.</p>` : ''}`, resub ? 'Hantar semula' : 'Hantar')) return;
+        if (!await confirmBox(resub ? 'Hantar semula permohonan?' : 'Hantar permohonan?', `<p>Permohonan akan dihantar kepada Jawatankuasa Penyemak untuk semakan (dalam ${SLA_DAYS} hari bekerja). Anda tidak boleh menyunting sehingga keputusan dibuat.</p>${isUrgent(a) ? `<p class="small" style="margin-top:8px;color:var(--st-amend)"><b>Permohonan segera:</b> tarikh mula kurang daripada ${minNotice()} hari — tiada jaminan kelulusan sebelum tarikh mula.</p>` : ''}`, resub ? 'Hantar semula' : 'Hantar')) return;
         const ok = await act($('#submit'), async () => {
           if (!await flushSave()) return false;
           if (!apply(await call(API.submit(a.application_id)))) return false;
@@ -948,11 +948,17 @@
     });
   }
 
+  // Decisions are made by the Jawatankuasa on behalf of TD HEPA, so applicants never see which member acted.
+  const COMMITTEE = 'Jawatankuasa Penyemak JOC FKTEN';
+  const asApplicant = () => session.role === 'APPLICANT';
+  const actorName = (h) => asApplicant() && h.actor_id !== session.user_id ? COMMITTEE : userName(h.actor_id);
+
   function timelineHTML(a) {
+    const internal = { RELEASE: true, TAKEOVER: true }; // review hand-overs are committee business
     const dotCls = { SUBMIT: '', RESUBMIT: '', CREATE: 'grey', REQUEST_AMEND: 'warn', APPROVE: 'ok', LETTER_ISSUED: 'ok', REJECT: 'err', WITHDRAW: 'grey', CLAIM: 'grey', RELEASE: 'grey', TAKEOVER: 'grey' };
-    return `<ul class="timeline">${histOf(a.application_id).map(h => `<li><span class="dot ${dotCls[h.action_code] || ''}"></span>
+    return `<ul class="timeline">${histOf(a.application_id).filter(h => !(asApplicant() && internal[h.action_code])).map(h => `<li><span class="dot ${dotCls[h.action_code] || ''}"></span>
       <div class="tt">${esc(label('ACTION', h.action_code))}${h.version_no ? ` <span class="small muted">· versi ${h.version_no}</span>` : ''}</div>
-      <div class="tm">${fmtDT(h.created_at)} · ${esc(userName(h.actor_id))}</div>
+      <div class="tm">${fmtDT(h.created_at)} · ${esc(actorName(h))}</div>
       ${h.remarks ? `<div class="tc">${esc(h.remarks)}</div>` : ''}</li>`).join('')}</ul>`;
   }
 
@@ -969,9 +975,9 @@
     if (a.status_code === 'DRAFT') actions.push(`<button class="btn" id="del">${ic('trash')} Padam draf</button>`);
     shell(a.ref_no || 'Draf', `
       <div class="page-head"><div><div class="row" style="margin-bottom:6px">${badge(a.status_code)}<span class="small muted">${esc(a.ref_no || a.application_id)}</span></div><h1>${esc(a.programme_name || '(Tanpa nama)')}</h1></div><div class="row">${actions.join('')}</div></div>
-      ${a.status_code === 'AMEND_REQUIRED' && lastAmend ? `<div class="callout warn" style="margin-bottom:16px">${ic('edit')}<div class="body"><b>Pindaan diminta oleh TD HEPA (${fmtDate(lastAmend.decided_at)}):</b><br>${esc(lastAmend.comments)}</div></div>` : ''}
+      ${a.status_code === 'AMEND_REQUIRED' && lastAmend ? `<div class="callout warn" style="margin-bottom:16px">${ic('edit')}<div class="body"><b>Pindaan diminta oleh Jawatankuasa Penyemak (${fmtDate(lastAmend.decided_at)}):</b><br>${esc(lastAmend.comments)}</div></div>` : ''}
       ${a.status_code === 'REJECTED' && lastReject ? `<div class="callout err" style="margin-bottom:16px">${ic('x')}<div class="body"><b>Tidak diluluskan:</b> ${esc(lastReject.comments)}</div></div>` : ''}
-      ${pending(a) ? `<div class="callout info" style="margin-bottom:16px">${ic('clock')}<div class="body">${claimActive(a) ? `Permohonan sedang disemak oleh <b>${esc(userName(a.claimed_by))}</b>.` : 'Permohonan menunggu semakan TD HEPA.'} Semakan dibuat dalam ${SLA_DAYS} hari bekerja dan anda akan dimaklumkan melalui emel.</div></div>` : ''}
+      ${pending(a) ? `<div class="callout info" style="margin-bottom:16px">${ic('clock')}<div class="body">${claimActive(a) ? `Permohonan sedang disemak oleh <b>${esc(asApplicant() ? COMMITTEE : userName(a.claimed_by))}</b>.` : 'Permohonan menunggu semakan Jawatankuasa Penyemak.'} Semakan dibuat dalam ${SLA_DAYS} hari bekerja dan anda akan dimaklumkan melalui emel.</div></div>` : ''}
       ${a.status_code === 'APPROVED' ? approvedPanel(a, letter) : ''}
       <div class="detail-grid">
         <div>${appSummary(a, null)}</div>
@@ -1005,7 +1011,7 @@
     return `<div class="card" style="margin-bottom:20px;border-color:color-mix(in srgb, var(--st-ok) 40%, var(--border))">
       <div class="card-head"><div><h2>Diluluskan oleh fakulti ✓</h2><p class="small muted">${letter ? esc(letter.letter_ref_no) + ' · ' + fmtDate(letter.generated_at) : ''}</p></div>
         <div class="row"><button class="btn btn-primary" id="letter">${ic('download')} Surat kelulusan (PDF)</button><button class="btn" id="csv">${ic('download')} Maklumat untuk portal JoC (CSV)</button>${['REVIEWER', 'ADMIN'].includes(session.role) && letter ? `<button class="btn" id="regen">${ic('refresh')} Jana semula surat</button>` : ''}</div></div>
-      ${letter && !IS_MOCK && !letter.drive_file_id ? `<div class="card-body" style="padding-bottom:0"><div class="callout warn">${ic('alert')}<div class="body">Surat PDF belum berjaya dijana.${['REVIEWER', 'ADMIN'].includes(session.role) ? ' Tekan <b>Jana semula surat</b>.' : ' TD HEPA akan menjananya semula.'}</div></div></div>` : ''}
+      ${letter && !IS_MOCK && !letter.drive_file_id ? `<div class="card-body" style="padding-bottom:0"><div class="callout warn">${ic('alert')}<div class="body">Surat PDF belum berjaya dijana.${['REVIEWER', 'ADMIN'].includes(session.role) ? ' Tekan <b>Jana semula surat</b>.' : ' Jawatankuasa Penyemak akan menjananya semula.'}</div></div></div>` : ''}
       ${isOwner ? `<div class="card-body"><div class="callout ok">${ic('check')}<div class="body"><b>Langkah seterusnya di portal MySISWA@JoC:</b>
         <ol class="next-steps">
           <li>Log masuk ke <a href="${JOC_PORTAL}" target="_blank" rel="noopener">portal MySISWA@JoC</a> (joc.mohe.gov.my).</li>
@@ -1337,7 +1343,7 @@
       <div class="callout info" style="margin-bottom:16px">${ic('mail')}<div class="body"><b>Siapa menerima emel:</b> permohonan baharu / dihantar semula → <b>semua Penyemak</b>. Pindaan / Tolak → pemohon (s.k. semua Penyemak). Lulus → pemohon (s.k. semua Penyemak) dan <b>CGEE</b> (hanya jika suis CGEE = YA). Senarai Penyemak diambil daripada Pengguna &amp; Peranan.<div style="margin-top:8px"><a class="btn btn-sm" href="#/admin/users">${ic('users')} Buka Pengguna &amp; Peranan</a></div></div></div>
       <div class="card card-pad" style="margin-bottom:16px"><h3>Suis emel</h3><p class="small muted" style="margin:4px 0 12px">OFF = rekod sahaja · TEST = hantar semua ke penerima ujian · LIVE = hantar kepada penerima sebenar (CGEE ikut suis di bawah)</p>
         <div class="seg" id="seg">${['OFF', 'TEST', 'LIVE'].map(m => `<button data-mode="${m}" class="${S('EMAIL_MODE') === m ? 'on' : ''}">${m}</button>`).join('')}</div></div>
-      <div class="card card-pad" style="margin-bottom:16px"><h3>Hantar kepada CGEE</h3><p class="small muted" style="margin:4px 0 12px">TIDAK = emel kelulusan kepada CGEE hanya direkod dalam log (untuk ujian dengan pemohon &amp; TD HEPA). YA = CGEE menerima emel kelulusan (apabila mod emel TEST/LIVE).</p>
+      <div class="card card-pad" style="margin-bottom:16px"><h3>Hantar kepada CGEE</h3><p class="small muted" style="margin:4px 0 12px">TIDAK = emel kelulusan kepada CGEE hanya direkod dalam log (untuk ujian dengan pemohon &amp; Jawatankuasa Penyemak). YA = CGEE menerima emel kelulusan (apabila mod emel TEST/LIVE).</p>
         <div class="seg">${['TIDAK', 'YA'].map(m => `<button data-cgee="${m}" class="${(S('CGEE_ENABLED') || 'TIDAK') === m ? 'on' : ''}">${m}</button>`).join('')}</div></div>
       <form id="sf" novalidate>${groups.map(([t, list]) => `<div class="card" style="margin-bottom:16px"><div class="card-head"><h3>${t}</h3></div><div class="card-body"><div class="grid-2">${list.map(field).join('')}</div></div></div>`).join('')}
         <div class="row end"><button class="btn btn-primary" id="save">${ic('save')} Simpan tetapan</button></div></form>`);

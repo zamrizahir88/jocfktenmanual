@@ -29,16 +29,16 @@ function jocEmail_(kind, d) {
       subject: '[JOC FKTEN] Pindaan diperlukan · ' + d.ref_no,
       chip: ['PERLU PINDAAN', '#b45309', '#fff4d6'],
       title: 'Permohonan JOC anda memerlukan pindaan',
-      intro: 'Permohonan anda telah disemak oleh TD HEPA. Sila buat pindaan berdasarkan ulasan di bawah dan hantar semula.',
-      note: ['Ulasan TD HEPA', d.comments, '#b45309', '#fff8e6'],
+      intro: 'Permohonan anda telah disemak oleh Jawatankuasa Penyemak JOC FKTEN bagi pihak TD HEPA. Sila buat pindaan berdasarkan ulasan di bawah dan hantar semula.',
+      note: ['Ulasan Jawatankuasa Penyemak', d.comments, '#b45309', '#fff8e6'],
       button: 'Buat pindaan',
     },
     REJECTED_TO_APPLICANT: {
       subject: '[JOC FKTEN] Permohonan tidak diluluskan · ' + d.ref_no,
       chip: ['TIDAK DILULUSKAN', '#b91c1c', '#fde7e7'],
       title: 'Permohonan JOC anda tidak diluluskan',
-      intro: 'Permohonan anda telah disemak oleh TD HEPA dan tidak diluluskan di peringkat fakulti.',
-      note: ['Ulasan TD HEPA', d.comments, '#b91c1c', '#fdf0f0'],
+      intro: 'Permohonan anda telah disemak oleh Jawatankuasa Penyemak JOC FKTEN bagi pihak TD HEPA dan tidak diluluskan di peringkat fakulti.',
+      note: ['Ulasan Jawatankuasa Penyemak', d.comments, '#b91c1c', '#fdf0f0'],
       button: 'Lihat permohonan',
     },
     APPROVED_TO_APPLICANT: {
@@ -117,7 +117,7 @@ function jocEmail_(kind, d) {
     // footer
     '<tr><td style="padding:22px 26px 24px"><div style="border-top:1px solid #e3e8f0;padding-top:14px;font-size:11px;line-height:1.6;color:#5b6577">' +
       'Emel ini dijana secara automatik oleh Sistem Permohonan JOC, Fakulti Kejuruteraan &amp; Teknologi Elektronik (FKTEN), Universiti Malaysia Perlis. Sila jangan balas emel ini.<br>' +
-      'Pertanyaan: TD HEPA FKTEN.</div></td></tr>' +
+      'Pertanyaan: Jawatankuasa Penyemak JOC FKTEN (Pejabat TD HEPA).</div></td></tr>' +
     '</table></div>';
 
   return { subject: T.subject, html };
