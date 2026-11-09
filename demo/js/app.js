@@ -308,11 +308,11 @@
           <div class="side-scroll">
           <div class="brand">
             <span class="logo-chip"><img src="${LOGO}" alt="Universiti Malaysia Perlis"></span>
-            <div class="sys-big">Sistem Permohonan JOC</div>
-            <div class="sys-tag">Job on Campus · Saringan Fakulti</div>
+            <div class="sys-big">Sistem Saringan Permohonan JoC</div>
+            <div class="sys-tag">MySISWA Job on Campus</div>
             <div class="fac">Fakulti Kejuruteraan &amp; Teknologi Elektronik <b>(FKTEN)</b></div>
           </div>
-          <div class="brand-mini"><a class="logomark" href="#/home" title="Sistem Permohonan JOC · Laman Utama"><b>JOC</b><i></i><em>FKTEN</em></a></div>
+          <div class="brand-mini"><a class="logomark" href="#/home" title="Sistem Saringan Permohonan JoC · Laman Utama"><b>JOC</b><i></i><em>FKTEN</em></a></div>
           <div class="nav-label">${esc(roleName(session.role))}</div>
           <nav class="nav">${nav}</nav>
           <div class="spacer"></div>
@@ -322,7 +322,7 @@
         <div class="main">
           <header class="topbar">
             <button class="btn btn-ghost btn-icon menu-btn" data-act="nav" aria-label="Menu">${ic('menu')}</button>
-            <div class="appname"><a class="logomark sm" href="#/home" title="Laman Utama"><b>JOC</b><i></i><em>FKTEN</em></a><div class="an-text"><div class="an-title sys">Sistem Permohonan JOC</div><div class="an-sub page"><span class="crumb">FKTEN ·</span> ${esc(title)}</div></div></div>
+            <div class="appname"><a class="logomark sm" href="#/home" title="Laman Utama"><b>JOC</b><i></i><em>FKTEN</em></a><div class="an-text"><div class="an-title sys">Sistem Saringan Permohonan JoC</div><div class="an-sub page"><span class="crumb">FKTEN ·</span> ${esc(title)}</div></div></div>
             ${myRoles.length > 1 ? `<label class="role-switch" title="Tukar peranan"><select data-act="role" aria-label="Peranan">${myRoles.map(r => `<option value="${r}" ${r === session.role ? 'selected' : ''}>${esc(roleName(r))}</option>`).join('')}</select></label>` : ''}
             <button class="btn btn-ghost btn-icon" data-act="refresh" title="Muat semula data" aria-label="Muat semula data">${ic('refresh')}</button>
             ${themeBtn()}
@@ -376,7 +376,7 @@
   function hero(sub, pills, cta) {
     const user = me(), d = new Date();
     return `<section class="hero"><span class="orb o1"></span><span class="orb o2"></span><span class="orb o3"></span><span class="dots"></span>
-      <div class="h-eyebrow"><span class="dot"></span><span class="sysname">Sistem Permohonan JOC · FKTEN</span><span class="sep">—</span><span>${HARI[d.getDay()]}, ${d.getDate()} ${BULAN_PENUH[d.getMonth()]} ${d.getFullYear()}</span></div>
+      <div class="h-eyebrow"><span class="dot"></span><span class="sysname">Sistem Saringan Permohonan JoC · FKTEN</span><span class="sep">—</span><span>${HARI[d.getDay()]}, ${d.getDate()} ${BULAN_PENUH[d.getMonth()]} ${d.getFullYear()}</span></div>
       <h1><span class="g1">${greeting()} <span class="wave">👋</span></span><span class="g2">${esc(user.full_name)}</span></h1>
       <div class="h-sub">${esc(sub)}</div>
       <div class="h-row">${pills.map(([c, t, h]) => `<a class="pill ${c}" href="${h}"><i></i>${esc(t)}</a>`).join('')}${cta || ''}</div></section>`;
@@ -434,7 +434,7 @@
         <section class="landing-hero">
           <div>
             <span class="eyebrow">MySISWA Job on Campus</span>
-            <h1>Sistem Permohonan JOC</h1>
+            <h1>Sistem Saringan Permohonan JoC</h1>
             <div class="faculty">${FACULTY}</div>
             <p class="lead">Saringan permohonan Job on Campus di peringkat fakulti. Hantar butiran program dan bukti kelulusan di sini dahulu; setelah diluluskan oleh fakulti, teruskan permohonan di portal MySISWA@JoC KPT.</p>
             <div class="cta-row">
@@ -462,7 +462,7 @@
     const accts = D().users.map(u => [u.email, u.full_name, rolesOf(u.user_id).map(r => roleName(r)).join(' · ')])
       .concat([['staf.baharu@unimap.edu.my', 'Staf Baharu (log masuk kali pertama)', 'Belum berdaftar'], ['pengguna.peribadi@gmail.com', 'Akaun Gmail peribadi', 'Bukan akaun UniMAP']]);
     const colors = ['#0e2262', '#2563eb', '#0f766e', '#b45309', '#7c3aed', '#be123c', '#475569', '#64748b'];
-    const m = modal(`<div class="modal-head"><div><h3>Pilih akaun</h3><p class="small muted">untuk meneruskan ke Sistem Permohonan JOC</p></div><button class="btn btn-ghost btn-icon" data-close aria-label="Tutup">${ic('x')}</button></div>
+    const m = modal(`<div class="modal-head"><div><h3>Pilih akaun</h3><p class="small muted">untuk meneruskan ke Sistem Saringan Permohonan JoC</p></div><button class="btn btn-ghost btn-icon" data-close aria-label="Tutup">${ic('x')}</button></div>
       <div class="modal-body" style="padding:10px">
         <div class="callout info small" style="margin:6px 6px 10px">${ic('info')}<div>Mock: dalam sistem sebenar, skrin ini dipaparkan oleh Google. Pilih akaun demo untuk mencuba setiap peranan.</div></div>
         ${accts.map(([em, nm, rl], i) => `<button class="acct" data-em="${esc(em)}" data-nm="${esc(nm)}"><span class="av" style="background:${colors[i % colors.length]}">${esc(initials(nm) || '?')}</span><span><b>${esc(nm)}</b><div class="em">${esc(em)}</div><div class="small muted">${esc(rl)}</div></span></button>`).join('')}
@@ -522,7 +522,7 @@
     const desc = { APPLICANT: 'Mohon JOC untuk program anda, buat pindaan dan muat turun surat kelulusan.', REVIEWER: 'Semak permohonan staf dan buat keputusan Lulus, Pindaan atau Tolak.', ADMIN: 'Urus pengguna, peranan, senarai pilihan, tetapan dan suis emel.', VIEWER: 'Lihat laporan dan statistik permohonan JOC fakulti.' };
     $('#root').innerHTML = `<div class="landing"><div class="landing-top"><span class="logo-chip"><img src="${LOGO}" alt="UniMAP"></span>${themeBtn()}</div>
       <div class="content" style="max-width:860px">
-        <div class="sys-line"><span class="logomark lg"><b>JOC</b><i></i><em>FKTEN</em></span><div><div class="t1">Sistem Permohonan JOC</div><div class="t2">${FACULTY}</div></div></div>
+        <div class="sys-line"><span class="logomark lg"><b>JOC</b><i></i><em>FKTEN</em></span><div><div class="t1">Sistem Saringan Permohonan JoC</div><div class="t2">${FACULTY}</div></div></div>
         <h1>Selamat datang, ${esc(user.full_name)}</h1>
         <p class="muted" style="margin-top:6px">Akaun anda mempunyai ${rs.length} peranan. Pilih peranan untuk sesi ini — anda boleh tukar bila-bila masa di bahagian atas skrin.</p>
         <div class="role-grid">${rs.map(r => `<button class="role-card" data-role="${r}"><div class="ri">${ic(ROLE_ICON[r])}</div><h3>${esc(roleName(r))}</h3><p class="small muted" style="margin-top:6px">${desc[r]}</p></button>`).join('')}</div>
@@ -1423,7 +1423,7 @@
   function accessDenied(code, email) {
     const msg = { NOT_UNIMAP: 'Akaun ini bukan akaun @unimap.edu.my. Sila log masuk dengan akaun UniMAP anda.', NO_EMAIL: 'Google tidak memberikan alamat emel anda. Pastikan anda log masuk dengan akaun UniMAP.', INACTIVE: 'Akaun anda telah dinyahaktifkan. Sila hubungi pentadbir sistem.' }[code] || code;
     $('#root').innerHTML = `<div class="landing"><div class="landing-top"><span class="logo-chip"><img src="${LOGO}" alt="UniMAP"></span></div>
-      <div class="content" style="max-width:640px"><h1>Sistem Permohonan JOC</h1><p class="muted" style="margin:6px 0 20px">${FACULTY}</p>
+      <div class="content" style="max-width:640px"><h1>Sistem Saringan Permohonan JoC</h1><p class="muted" style="margin:6px 0 20px">${FACULTY}</p>
       <div class="callout err">${ic('shield')}<div class="body"><b>Akses ditolak.</b> ${esc(msg)}${email ? `<br><span class="small">${esc(email)}</span>` : ''}</div></div></div></div>`;
   }
 })();

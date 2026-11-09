@@ -1,4 +1,4 @@
-# Manual Pengguna – Sistem Permohonan JOC FKTEN
+# Manual Pengguna – Sistem Saringan Permohonan JoC FKTEN
 
 Interactive user manual (slides) for the JOC application system of the Fakulti Kejuruteraan & Teknologi Elektronik (FKTEN), Universiti Malaysia Perlis.
 

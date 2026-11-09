@@ -94,7 +94,7 @@ function jocEmail_(kind, d) {
           '<div style="height:2px;width:30px;background:#0a1230;opacity:.55;margin:3px auto 2px"></div>' +
           '<div style="font-weight:800;font-size:8px;color:#ff1a1a;line-height:8px;letter-spacing:2px">FKTEN</div></td>' +
         '<td style="padding-left:14px">' +
-          '<div style="color:#ffffff;font-size:17px;font-weight:800">Sistem Permohonan JOC</div>' +
+          '<div style="color:#ffffff;font-size:17px;font-weight:800">Sistem Saringan Permohonan JoC</div>' +
           '<div style="color:#f5c63a;font-size:11px;font-weight:700;letter-spacing:1px;margin-top:2px">FKTEN · UNIVERSITI MALAYSIA PERLIS</div></td>' +
       '</tr></table></td></tr>' +
     // status chip + title + intro
@@ -116,7 +116,7 @@ function jocEmail_(kind, d) {
     (kind === 'APPROVED_TO_CGEE' ? '<tr><td style="padding:16px 26px 0;font-size:13px;color:#334155">Surat kelulusan fakulti dilampirkan bersama emel ini.</td></tr>' : '') +
     // footer
     '<tr><td style="padding:22px 26px 24px"><div style="border-top:1px solid #e3e8f0;padding-top:14px;font-size:11px;line-height:1.6;color:#5b6577">' +
-      'Emel ini dijana secara automatik oleh Sistem Permohonan JOC, Fakulti Kejuruteraan &amp; Teknologi Elektronik (FKTEN), Universiti Malaysia Perlis. Sila jangan balas emel ini.<br>' +
+      'Emel ini dijana secara automatik oleh Sistem Saringan Permohonan JoC, Fakulti Kejuruteraan &amp; Teknologi Elektronik (FKTEN), Universiti Malaysia Perlis. Sila jangan balas emel ini.<br>' +
       'Pertanyaan: Jawatankuasa Penyemak JOC FKTEN (Pejabat TD HEPA).</div></td></tr>' +
     '</table></div>';
 
